@@ -5,6 +5,7 @@ import '../screens/bookings.dart';
 import '../screens/browse.dart';
 import '../screens/student_classroom.dart';
 import '../screens/student_home.dart';
+import '../screens/student_profile.dart';
 import '../screens/study_studio.dart';
 
 class StudentShell extends StatefulWidget {
@@ -16,12 +17,13 @@ class StudentShell extends StatefulWidget {
 
 class _StudentShellState extends State<StudentShell> {
   int _index = 0;
-  static const List<Widget> _pages = <Widget>[
-    StudentHomeScreen(),
-    BrowseScreen(),
-    BookingsScreen(),
-    StudentClassroomScreen(),
-    StudyStudioScreen(),
+  static final List<Widget> _pages = <Widget>[
+    const StudentHomeScreen(),
+    const BrowseScreen(),
+    const BookingsScreen(),
+    const StudentClassroomScreen(),
+    const StudyStudioScreen(),
+    const StudentProfileScreen(),
   ];
 
   @override
@@ -32,6 +34,7 @@ class _StudentShellState extends State<StudentShell> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _index,
         onTap: (int index) => setState(() => _index = index),
+        type: BottomNavigationBarType.shifting,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
@@ -57,6 +60,11 @@ class _StudentShellState extends State<StudentShell> {
             icon: Icon(Icons.auto_stories_outlined),
             activeIcon: Icon(Icons.auto_stories),
             label: 'Study',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Profile',
           ),
         ],
       ),

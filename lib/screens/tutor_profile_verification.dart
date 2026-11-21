@@ -20,7 +20,8 @@ class TutorProfileVerificationScreen extends StatefulWidget {
       _TutorProfileVerificationScreenState();
 }
 
-class _TutorProfileVerificationScreenState extends State<TutorProfileVerificationScreen> {
+class _TutorProfileVerificationScreenState
+    extends State<TutorProfileVerificationScreen> {
   TutorProfile? _profile;
   bool _initialized = false;
   bool _uploading = false;
@@ -35,8 +36,9 @@ class _TutorProfileVerificationScreenState extends State<TutorProfileVerificatio
   }
 
   Future<void> _load(String uid) async {
-    final TutorProfile? profile =
-        await context.read<FirestoreService>().fetchTutor(uid);
+    final TutorProfile? profile = await context
+        .read<FirestoreService>()
+        .fetchTutor(uid);
     if (!mounted) return;
     setState(() => _profile = profile);
   }
@@ -47,10 +49,10 @@ class _TutorProfileVerificationScreenState extends State<TutorProfileVerificatio
       (AuthProvider provider) => provider.currentUser,
     );
     final TutorProfile? profile = _profile;
-    final PendingUpload? pending =
-        context.select<ClassroomProvider, PendingUpload?>(
-      (ClassroomProvider provider) => provider.pendingUpload,
-    );
+    final PendingUpload? pending = context
+        .select<ClassroomProvider, PendingUpload?>(
+          (ClassroomProvider provider) => provider.pendingUpload,
+        );
 
     return ScreenScaffold(
       title: 'Profile & verification',
@@ -117,6 +119,15 @@ class _TutorProfileVerificationScreenState extends State<TutorProfileVerificatio
                 onPressed: _uploading ? null : _retry,
               ),
             ],
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.logout),
+              label: const Text('Sign out'),
+              onPressed: () => context.read<AuthProvider>().signOut(),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+            ),
           ],
         ),
       ),
@@ -141,7 +152,10 @@ class _TutorProfileVerificationScreenState extends State<TutorProfileVerificatio
     final TutorProfile updated = purpose == UploadPurpose.avatar
         ? _profile!.copyWith(avatarUrl: upload.secureUrl)
         : _profile!.copyWith(
-            credentialUrls: <String>[..._profile!.credentialUrls, upload.secureUrl],
+            credentialUrls: <String>[
+              ..._profile!.credentialUrls,
+              upload.secureUrl,
+            ],
           );
     await firestore.saveTutorProfile(updated);
     if (mounted) setState(() => _profile = updated);
@@ -151,8 +165,7 @@ class _TutorProfileVerificationScreenState extends State<TutorProfileVerificatio
     final ClassroomProvider classroom = context.read<ClassroomProvider>();
     final FirestoreService firestore = context.read<FirestoreService>();
     setState(() => _uploading = true);
-    final CloudinaryUploadResult? upload =
-        await classroom.retryPendingUpload();
+    final CloudinaryUploadResult? upload = await classroom.retryPendingUpload();
     if (!mounted) return;
     setState(() => _uploading = false);
     if (upload == null || _profile == null) return;

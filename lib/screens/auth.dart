@@ -87,9 +87,8 @@ class _AuthScreenState extends State<AuthScreen> {
             Text(
               'Payments are simulated in this build.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AppColors.muted,
-              ),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: AppColors.muted),
             ),
           ],
         ),
@@ -115,7 +114,11 @@ class _AuthScreenState extends State<AuthScreen> {
         password: _passwordController.text,
       );
     }
-    _showErrorIfNeeded(auth.error);
+    if (auth.error == null && mounted) {
+      Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
+    } else {
+      _showErrorIfNeeded(auth.error);
+    }
   }
 
   Future<void> _signInWithGoogle() async {
@@ -126,15 +129,12 @@ class _AuthScreenState extends State<AuthScreen> {
 
   void _showErrorIfNeeded(String? error) {
     if (!mounted || error == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
   }
 
   void _show(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 }
