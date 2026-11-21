@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../models/app_user.dart';
 import '../models/time_slot.dart';
@@ -22,8 +21,6 @@ class TutorProfileVerificationScreen extends StatefulWidget {
 
 class _TutorProfileVerificationScreenState
     extends State<TutorProfileVerificationScreen> {
-  static const String _verificationRecipientEmail = 'neorylet@gmail.com';
-
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
@@ -183,44 +180,30 @@ class _TutorProfileVerificationScreenState
     }
   }
 
-  Future<void> _sendVerificationEmail(AppUser user) async {
+  Future<void> _sendTutorApplication(AppUser user) async {
     final TutorProfile draft = _buildDraftProfile(user);
-    final String credentialsText = draft.credentialUrls.isEmpty
-        ? 'None uploaded yet'
-        : draft.credentialUrls.join('\n- ');
 
-    final String subject =
-        'TutorTap Verification: ${draft.displayName} (${user.uid})';
-    final String body =
-        '''
-Tutor verification details:
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
 
-- UID: ${user.uid}
-- Display Name: ${draft.displayName}
-- Account Email: ${user.email}
-- Subjects: ${draft.subjects.isEmpty ? 'Not set' : draft.subjects.join(', ')}
-- Hourly Rate: PHP ${draft.hourlyRate.toStringAsFixed(0)}
-- Bio: ${draft.bio.isEmpty ? 'Not set' : draft.bio}
-- Meeting Room: ${draft.meetingRoomInfo.isEmpty ? 'Not set' : draft.meetingRoomInfo}
-- Credentials:
-- $credentialsText
-''';
-
-    final Uri mailUri = Uri(
-      scheme: 'mailto',
-      path: _verificationRecipientEmail,
-      queryParameters: <String, String>{'subject': subject, 'body': body},
-    );
-
-    final bool launched = await launchUrl(
-      mailUri,
-      mode: LaunchMode.externalApplication,
-    );
-    if (!launched && mounted) {
-      setState(() {
-        _error =
-            'Could not open mail client. Send UID ${user.uid} to $_verificationRecipientEmail.';
-      });
+    try {
+      await context.read<FirestoreService>().requestTutorVerification(
+        draft,
+        user.email,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tutor application submitted for review.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -394,8 +377,9 @@ Tutor verification details:
                           border: OutlineInputBorder(),
                         ),
                         validator: (String? value) {
-                          if (value == null || value.trim().isEmpty)
+                          if (value == null || value.trim().isEmpty) {
                             return null;
+                          }
                           final double? parsed = double.tryParse(value.trim());
                           if (parsed == null || parsed < 0) {
                             return 'Enter a valid non-negative rate.';
@@ -459,14 +443,14 @@ Tutor verification details:
                         onPressed: busy ? null : _retry,
                       ),
                     ],
+                    // Tutor Application Section
                     if (statusValue != 'verified') ...<Widget>[
-                      const SizedBox(height: 10),
                       PillButton(
-                        label: 'Send verification details to email',
+                        label: 'Submit tutor application',
                         variant: PillButtonVariant.amber,
                         onPressed: busy || user == null
                             ? null
-                            : () => _sendVerificationEmail(user),
+                            : () => _sendTutorApplication(user),
                       ),
                     ],
                   ],

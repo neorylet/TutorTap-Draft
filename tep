@@ -1,0 +1,160 @@
+warning: in the working copy of 'firestore.rules', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/screens/confirmation.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/screens/student_profile.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/screens/tutor_profile_verification.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/services/firestore_service.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'linux/flutter/generated_plugin_registrant.cc', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'linux/flutter/generated_plugins.cmake', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'macos/Flutter/GeneratedPluginRegistrant.swift', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'windows/flutter/generated_plugin_registrant.cc', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'windows/flutter/generated_plugins.cmake', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/firestore.rules b/firestore.rules[m
+[1mindex 2f163be..e7da85c 100644[m
+[1m--- a/firestore.rules[m
+[1m+++ b/firestore.rules[m
+[36m@@ -81,6 +81,16 @@[m [mservice cloud.firestore {[m
+       allow delete: if false;[m
+     }[m
+ [m
+[32m+[m[32m    // -------- VERIFICATION REQUESTS --------[m
+[32m+[m[32m    // Create/update: owner only (tutor submitting application after email verified)[m
+[32m+[m[32m    // Read: owner only[m
+[32m+[m[32m    // Approve/reject: Admin SDK only (via Firebase Console or admin script)[m
+[32m+[m[32m    match /verification_requests/{uid} {[m
+[32m+[m[32m      allow read: if isOwner(uid);[m
+[32m+[m[32m      allow create, update: if isOwner(uid);[m
+[32m+[m[32m      allow delete: if false;[m
+[32m+[m[32m    }[m
+[32m+[m
+     // -------- MODULES --------[m
+     // Unchanged from current repo rules.[m
+     match /modules/{moduleId} {[m
+[1mdiff --git a/lib/screens/confirmation.dart b/lib/screens/confirmation.dart[m
+[1mindex 2b4de22..b2dcdb7 100644[m
+[1m--- a/lib/screens/confirmation.dart[m
+[1m+++ b/lib/screens/confirmation.dart[m
+[36m@@ -57,7 +57,10 @@[m [mclass ConfirmationScreen extends StatelessWidget {[m
+                     note: booking.onlineSession.note,[m
+                   ),[m
+                   const SizedBox(height: 12),[m
+[31m-                  _Detail(label: 'Paid', value: '₱${booking.totalCharged.toStringAsFixed(2)}'),[m
+[32m+[m[32m                  _Detail([m
+[32m+[m[32m                    label: 'Paid',[m
+[32m+[m[32m                    value: '₱${booking.totalCharged.toStringAsFixed(2)}',[m
+[32m+[m[32m                  ),[m
+                   const SizedBox(height: 4),[m
+                   _Detail(label: 'Payment', value: booking.paymentMode),[m
+                 ],[m
+[36m@@ -66,15 +69,17 @@[m [mclass ConfirmationScreen extends StatelessWidget {[m
+             const SizedBox(height: 16),[m
+             PillButton([m
+               label: 'View bookings',[m
+[31m-              onPressed: () => Navigator.of(context)[m
+[31m-                  .pushReplacementNamed(AppRoutes.bookings),[m
+[32m+[m[32m              onPressed: () =>[m
+[32m+[m[32m                  Navigator.of(context)[m
+[32m+[m[32m                      .pushReplacementNamed(AppRoutes.bookings),[m
+             ),[m
+             const SizedBox(height: 8),[m
+             PillButton([m
+               label: 'Back to home',[m
+               variant: PillButtonVariant.text,[m
+[31m-              onPressed: () => Navigator.of(context)[m
+[31m-                  .pushReplacementNamed(AppRoutes.studentHome),[m
+[32m+[m[32m              onPressed: () =>[m
+[32m+[m[32m                  Navigator.of(context)[m
+[32m+[m[32m                      .pushReplacementNamed(AppRoutes.studentHome),[m
+             ),[m
+           ],[m
+         ),[m
+[1mdiff --git a/lib/screens/student_profile.dart b/lib/screens/student_profile.dart[m
+[1mindex 94ce76c..a9c611f 100644[m
+[1m--- a/lib/screens/student_profile.dart[m
+[1m+++ b/lib/screens/student_profile.dart[m
+[36m@@ -84,3 +84,17 @@[m [mclass StudentProfileScreen extends StatelessWidget {[m
+     return 'S';[m
+   }[m
+ }[m
+[32m+[m
+[32m+[m[32mString _getInitials(String displayName, String email) {[m
+[32m+[m[32m  if (displayName.isNotEmpty && displayName != 'Student') {[m
+[32m+[m[32m    final List<String> parts = displayName.split(' ');[m
+[32m+[m[32m    if (parts.length >= 2) {[m
+[32m+[m[32m      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();[m
+[32m+[m[32m    }[m
+[32m+[m[32m    return displayName[0].toUpperCase();[m
+[32m+[m[32m  }[m
+[32m+[m[32m  if (email.isNotEmpty) {[m
+[32m+[m[32m    return email[0].toUpperCase();[m
+[32m+[m[32m  }[m
+[32m+[m[32m  return 'S';[m
+[32m+[m[32m}[m
+[1mdiff --git a/lib/screens/tutor_profile_verification.dart b/lib/screens/tutor_profile_verification.dart[m
+[1mindex b211e0a..db79000 100644[m
+[1m--- a/lib/screens/tutor_profile_verification.dart[m
+[1m+++ b/lib/screens/tutor_profile_verification.dart[m
+[36m@@ -1,6 +1,5 @@[m
+ import 'package:flutter/material.dart';[m
+ import 'package:provider/provider.dart';[m
+[31m-import 'package:url_launcher/url_launcher.dart';[m
+ [m
+ import '../models/app_user.dart';[m
+ import '../models/time_slot.dart';[m
+[36m@@ -22,8 +21,6 @@[m [mclass TutorProfileVerificationScreen extends StatefulWidget {[m
+ [m
+ class _TutorProfileVerificationScreenState[m
+     extends State<TutorProfileVerificationScreen> {[m
+[31m-  static const String _verificationRecipientEmail = 'neorylet@gmail.com';[m
+[31m-[m
+   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();[m
+   final TextEditingController _nameController = TextEditingController();[m
+   final TextEditingController _bioController = TextEditingController();[m
+[36m@@ -183,44 +180,30 @@[m [mclass _TutorProfileVerificationScreenState[m
+     }[m
+   }[m
+ [m
+[31m-  Future<void> _sendVerificationEmail(AppUser user) async {[m
+[32m+[m[32m  Future<void> _sendTutorApplication(AppUser user) async {[m
+     final TutorProfile draft = _buildDraftProfile(user);[m
+[31m-    final String credentialsText = draft.credentialUrls.isEmpty[m
+[31m-        ? 'None uploaded yet'[m
+[31m-        : draft.credentialUrls.join('\n- ');[m
+[31m-[m
+[31m-    final String subject =[m
+[31m-        'TutorTap Verification: ${draft.displayName} (${user.uid})';[m
+[31m-    final String body =[m
+[31m-        '''[m
+[31m-Tutor verification details:[m
+[31m-[m
+[31m-- UID: ${user.uid}[m
+[31m-- Display Name: ${draft.displayName}[m
+[31m-- Account Email: ${user.email}[m
+[31m-- Subjects: ${draft.subjects.isEmpty ? 'Not set' : draft.subjects.join(', ')}[m
+[31m-- Hourly Rate: PHP ${draft.hourlyRate.toStringAsFixed(0)}[m
+[31m-- Bio: ${draft.bio.isEmpty ? 'Not set' : draft.bio}[m
+[31m-- Meeting Room: ${draft.meetingRoomInfo.isEmpty ? 'Not set' : draft.meetingRoomInfo}[m
+[31m-- Credentials:[m
+[31m-- $credentialsText[m
+[31m-''';[m
+ [m
+[31m-    final Uri mailUri = Uri([m
+[31m-      scheme: 'mailto',[m
+[31m-      path: _verificationRecipientEmail,[m
+[31m-      queryParameters: <String, String>{'subject': subject, 'body': body},[m
+[31m-    );[m
+[32m+[m[32m    setState(() {[m
+[32m+[m[32m      _saving = true;[m
+[32m+[m[32m      _error = null;[m
+[32m+[m[32m    });[m
+ [m
+[31m-    final bool launched = await launchUrl([m
+[31m-      mailUri,[m
+[31m-      mode: LaunchMode.externalApplication,[m
+[31m-    );[m
+[31m-    if (!launched && mounted) {[m
+[31m-      setState(() {[m
+[31m-        _error =[m
+[31m-            'Could not open mail client. Send UID ${user.uid} to $_verificationRecipientEmail.';[m
+[31m-      });[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      await context.read<FirestoreS

@@ -81,6 +81,16 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // -------- VERIFICATION REQUESTS --------
+    // Create/update: owner only (tutor submitting application after email verified)
+    // Read: owner only
+    // Approve/reject: Admin SDK only (via Firebase Console or admin script)
+    match /verification_requests/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid);
+      allow delete: if false;
+    }
+
     // -------- MODULES --------
     // Unchanged from current repo rules.
     match /modules/{moduleId} {

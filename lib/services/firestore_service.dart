@@ -51,6 +51,8 @@ class FirestoreService {
       _firestore.collection('flashcard_decks');
   CollectionReference<Map<String, dynamic>> get mockExams =>
       _firestore.collection('mock_exams');
+  CollectionReference<Map<String, dynamic>> get verificationRequests =>
+      _firestore.collection('verification_requests');
 
   Future<TutorPage> fetchVerifiedTutors({
     int limit = AppConstants.catalogPageSize,
@@ -66,7 +68,10 @@ class FirestoreService {
     final List<TutorProfile> items = snapshot.docs
         .map(
           (QueryDocumentSnapshot<Map<String, dynamic>> doc) =>
-              TutorProfile.fromMap(<String, dynamic>{...doc.data(), 'uid': doc.id}),
+              TutorProfile.fromMap(<String, dynamic>{
+                ...doc.data(),
+                'uid': doc.id,
+              }),
         )
         .toList(growable: true);
     return TutorPage(
@@ -76,8 +81,9 @@ class FirestoreService {
   }
 
   Future<TutorProfile?> fetchTutor(String uid) async {
-    final DocumentSnapshot<Map<String, dynamic>> snapshot =
-        await tutors.doc(uid).get();
+    final DocumentSnapshot<Map<String, dynamic>> snapshot = await tutors
+        .doc(uid)
+        .get();
     final Map<String, dynamic>? data = snapshot.data();
     if (!snapshot.exists || data == null) return null;
     return TutorProfile.fromMap(<String, dynamic>{...data, 'uid': uid});
@@ -87,9 +93,8 @@ class FirestoreService {
     return tutors.doc(tutorId).snapshots().map((snapshot) {
       final Map<String, dynamic>? data = snapshot.data();
       if (data == null) return <TimeSlot>[];
-      return TutorProfile.fromMap(
-        <String, dynamic>{...data, 'uid': tutorId},
-      ).slots;
+      return TutorProfile.fromMap(<String, dynamic>{...data, 'uid': tutorId})
+          .slots;
     });
   }
 
@@ -117,9 +122,10 @@ class FirestoreService {
           (QuerySnapshot<Map<String, dynamic>> snapshot) => snapshot.docs
               .map(
                 (QueryDocumentSnapshot<Map<String, dynamic>> doc) =>
-                    ClassroomModule.fromMap(
-                      <String, dynamic>{...doc.data(), 'id': doc.id},
-                    ),
+                    ClassroomModule.fromMap(<String, dynamic>{
+                      ...doc.data(),
+                      'id': doc.id,
+                    }),
               )
               .toList(growable: true),
         );
@@ -147,7 +153,10 @@ class FirestoreService {
           (QuerySnapshot<Map<String, dynamic>> snapshot) => snapshot.docs
               .map(
                 (QueryDocumentSnapshot<Map<String, dynamic>> doc) =>
-                    Exam.fromMap(<String, dynamic>{...doc.data(), 'id': doc.id}),
+                    Exam.fromMap(<String, dynamic>{
+                      ...doc.data(),
+                      'id': doc.id,
+                    }),
               )
               .toList(growable: true),
         );
@@ -161,9 +170,10 @@ class FirestoreService {
           (QuerySnapshot<Map<String, dynamic>> snapshot) => snapshot.docs
               .map(
                 (QueryDocumentSnapshot<Map<String, dynamic>> doc) =>
-                    FlashcardDeck.fromMap(
-                      <String, dynamic>{...doc.data(), 'id': doc.id},
-                    ),
+                    FlashcardDeck.fromMap(<String, dynamic>{
+                      ...doc.data(),
+                      'id': doc.id,
+                    }),
               )
               .toList(growable: true),
         );
@@ -177,7 +187,10 @@ class FirestoreService {
           (QuerySnapshot<Map<String, dynamic>> snapshot) => snapshot.docs
               .map(
                 (QueryDocumentSnapshot<Map<String, dynamic>> doc) =>
-                    MockExam.fromMap(<String, dynamic>{...doc.data(), 'id': doc.id}),
+                    MockExam.fromMap(<String, dynamic>{
+                      ...doc.data(),
+                      'id': doc.id,
+                    }),
               )
               .toList(growable: true),
         );
@@ -192,45 +205,42 @@ class FirestoreService {
   Future<DocumentReference<Map<String, dynamic>>> addModule(
     ClassroomModule module,
   ) {
-    final DocumentReference<Map<String, dynamic>> ref =
-        modules.doc(module.id.isEmpty ? null : module.id);
-    return ref
-        .set(module.copyWith(id: ref.id).toMap())
-        .then((_) => ref);
+    final DocumentReference<Map<String, dynamic>> ref = modules.doc(
+      module.id.isEmpty ? null : module.id,
+    );
+    return ref.set(module.copyWith(id: ref.id).toMap()).then((_) => ref);
   }
 
   Future<DocumentReference<Map<String, dynamic>>> addAssignment(
     Assignment assignment,
   ) {
-    final DocumentReference<Map<String, dynamic>> ref =
-        assignments.doc(assignment.id.isEmpty ? null : assignment.id);
-    return ref
-        .set(assignment.copyWith(id: ref.id).toMap())
-        .then((_) => ref);
+    final DocumentReference<Map<String, dynamic>> ref = assignments.doc(
+      assignment.id.isEmpty ? null : assignment.id,
+    );
+    return ref.set(assignment.copyWith(id: ref.id).toMap()).then((_) => ref);
   }
 
   Future<DocumentReference<Map<String, dynamic>>> addExam(Exam exam) {
-    final DocumentReference<Map<String, dynamic>> ref =
-        exams.doc(exam.id.isEmpty ? null : exam.id);
+    final DocumentReference<Map<String, dynamic>> ref = exams.doc(
+      exam.id.isEmpty ? null : exam.id,
+    );
     return ref.set(exam.copyWith(id: ref.id).toMap()).then((_) => ref);
   }
 
-  Future<DocumentReference<Map<String, dynamic>>> addDeck(
-    FlashcardDeck deck,
-  ) {
-    final DocumentReference<Map<String, dynamic>> ref =
-        flashcardDecks.doc(deck.id.isEmpty ? null : deck.id);
+  Future<DocumentReference<Map<String, dynamic>>> addDeck(FlashcardDeck deck) {
+    final DocumentReference<Map<String, dynamic>> ref = flashcardDecks.doc(
+      deck.id.isEmpty ? null : deck.id,
+    );
     return ref.set(deck.copyWith(id: ref.id).toMap()).then((_) => ref);
   }
 
   Future<DocumentReference<Map<String, dynamic>>> addMockExam(
     MockExam mockExam,
   ) {
-    final DocumentReference<Map<String, dynamic>> ref =
-        mockExams.doc(mockExam.id.isEmpty ? null : mockExam.id);
-    return ref
-        .set(mockExam.copyWith(id: ref.id).toMap())
-        .then((_) => ref);
+    final DocumentReference<Map<String, dynamic>> ref = mockExams.doc(
+      mockExam.id.isEmpty ? null : mockExam.id,
+    );
+    return ref.set(mockExam.copyWith(id: ref.id).toMap()).then((_) => ref);
   }
 
   Future<void> updateAssignment(
@@ -253,17 +263,20 @@ class FirestoreService {
     required String slotId,
     required String studentUid,
   }) async {
-    final DocumentReference<Map<String, dynamic>> tutorRef = tutors.doc(tutorId);
+    final DocumentReference<Map<String, dynamic>> tutorRef = tutors.doc(
+      tutorId,
+    );
     await _firestore.runTransaction<void>((Transaction transaction) async {
-      final DocumentSnapshot<Map<String, dynamic>> snapshot =
-          await transaction.get(tutorRef);
+      final DocumentSnapshot<Map<String, dynamic>> snapshot = await transaction
+          .get(tutorRef);
       final Map<String, dynamic>? data = snapshot.data();
       if (!snapshot.exists || data == null) {
         throw const SlotAlreadyTakenException('Tutor is no longer available.');
       }
-      final TutorProfile profile = TutorProfile.fromMap(
-        <String, dynamic>{...data, 'uid': tutorId},
-      );
+      final TutorProfile profile = TutorProfile.fromMap(<String, dynamic>{
+        ...data,
+        'uid': tutorId,
+      });
       final int index = profile.slots.indexWhere(
         (TimeSlot slot) => slot.id == slotId,
       );
@@ -301,10 +314,14 @@ class FirestoreService {
     double commissionRate = AppConstants.defaultCommissionRate,
   }) async {
     final DocumentReference<Map<String, dynamic>> bookingRef = bookings.doc();
-    final DocumentReference<Map<String, dynamic>> tutorRef = tutors.doc(tutorId);
+    final DocumentReference<Map<String, dynamic>> tutorRef = tutors.doc(
+      tutorId,
+    );
     final DateTime now = DateTime.now();
-    final CommissionBreakdown money =
-        AppConstants.calculateCommission(subtotal, commissionRate);
+    final CommissionBreakdown money = AppConstants.calculateCommission(
+      subtotal,
+      commissionRate,
+    );
 
     final Booking booking = Booking(
       id: bookingRef.id,
@@ -333,9 +350,10 @@ class FirestoreService {
       if (!tutorSnapshot.exists || tutorData == null) {
         throw const SlotAlreadyTakenException('Tutor is no longer available.');
       }
-      final TutorProfile profile = TutorProfile.fromMap(
-        <String, dynamic>{...tutorData, 'uid': tutorId},
-      );
+      final TutorProfile profile = TutorProfile.fromMap(<String, dynamic>{
+        ...tutorData,
+        'uid': tutorId,
+      });
       final int index = profile.slots.indexWhere(
         (TimeSlot slot) => slot.id == slotId,
       );
@@ -376,10 +394,12 @@ class FirestoreService {
     required DateTime newStart,
     required DateTime newEnd,
   }) async {
-    final DocumentReference<Map<String, dynamic>> bookingRef =
-        bookings.doc(booking.id);
-    final DocumentReference<Map<String, dynamic>> tutorRef =
-        tutors.doc(booking.tutorId);
+    final DocumentReference<Map<String, dynamic>> bookingRef = bookings.doc(
+      booking.id,
+    );
+    final DocumentReference<Map<String, dynamic>> tutorRef = tutors.doc(
+      booking.tutorId,
+    );
 
     await _firestore.runTransaction<void>((Transaction transaction) async {
       final DocumentSnapshot<Map<String, dynamic>> tutorSnapshot =
@@ -388,9 +408,10 @@ class FirestoreService {
       if (!tutorSnapshot.exists || tutorData == null) {
         throw const SlotAlreadyTakenException('Tutor is no longer available.');
       }
-      final TutorProfile profile = TutorProfile.fromMap(
-        <String, dynamic>{...tutorData, 'uid': booking.tutorId},
-      );
+      final TutorProfile profile = TutorProfile.fromMap(<String, dynamic>{
+        ...tutorData,
+        'uid': booking.tutorId,
+      });
       final List<TimeSlot> updatedSlots = List<TimeSlot>.from(profile.slots);
       final int newIndex = updatedSlots.indexWhere(
         (TimeSlot slot) => slot.id == newSlotId,
@@ -436,7 +457,27 @@ class FirestoreService {
     });
   }
 
-  List<Booking> _bookingsFromSnapshot(QuerySnapshot<Map<String, dynamic>> snapshot) {
+  Future<void> requestTutorVerification(
+    TutorProfile profile,
+    String recipientEmail,
+  ) {
+    return verificationRequests.doc(profile.uid).set(<String, dynamic>{
+      'uid': profile.uid,
+      'displayName': profile.displayName,
+      'recipientEmail': recipientEmail,
+      'subjects': profile.subjects,
+      'hourlyRate': profile.hourlyRate,
+      'bio': profile.bio,
+      'meetingRoomInfo': profile.meetingRoomInfo,
+      'credentialUrls': profile.credentialUrls,
+      'status': 'pending',
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  List<Booking> _bookingsFromSnapshot(
+    QuerySnapshot<Map<String, dynamic>> snapshot,
+  ) {
     return snapshot.docs
         .map(
           (QueryDocumentSnapshot<Map<String, dynamic>> doc) =>
@@ -451,7 +492,10 @@ class FirestoreService {
     return snapshot.docs
         .map(
           (QueryDocumentSnapshot<Map<String, dynamic>> doc) =>
-              Assignment.fromMap(<String, dynamic>{...doc.data(), 'id': doc.id}),
+              Assignment.fromMap(<String, dynamic>{
+                ...doc.data(),
+                'id': doc.id,
+              }),
         )
         .toList(growable: true);
   }

@@ -57,7 +57,10 @@ class ConfirmationScreen extends StatelessWidget {
                     note: booking.onlineSession.note,
                   ),
                   const SizedBox(height: 12),
-                  _Detail(label: 'Paid', value: '₱${booking.totalCharged.toStringAsFixed(2)}'),
+                  _Detail(
+                    label: 'Paid',
+                    value: '₱${booking.totalCharged.toStringAsFixed(2)}',
+                  ),
                   const SizedBox(height: 4),
                   _Detail(label: 'Payment', value: booking.paymentMode),
                 ],
@@ -66,15 +69,17 @@ class ConfirmationScreen extends StatelessWidget {
             const SizedBox(height: 16),
             PillButton(
               label: 'View bookings',
-              onPressed: () => Navigator.of(context)
-                  .pushReplacementNamed(AppRoutes.bookings),
+              onPressed: () =>
+                  Navigator.of(context)
+                      .pushReplacementNamed(AppRoutes.bookings),
             ),
             const SizedBox(height: 8),
             PillButton(
               label: 'Back to home',
               variant: PillButtonVariant.text,
-              onPressed: () => Navigator.of(context)
-                  .pushReplacementNamed(AppRoutes.studentHome),
+              onPressed: () =>
+                  Navigator.of(context)
+                      .pushReplacementNamed(AppRoutes.studentHome),
             ),
           ],
         ),
