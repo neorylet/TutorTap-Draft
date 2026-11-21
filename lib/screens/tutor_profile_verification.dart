@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../models/app_user.dart';
+import '../models/time_slot.dart';
 import '../models/tutor_profile.dart';
 import '../providers/auth_provider.dart';
 import '../providers/classroom_provider.dart';
-import '../services/cloudinary_service.dart';
 import '../services/firestore_service.dart';
 import '../widgets/pill_button.dart';
 import '../widgets/status_badge.dart';
@@ -25,6 +24,7 @@ class _TutorProfileVerificationScreenState
   TutorProfile? _profile;
   bool _initialized = false;
   bool _uploading = false;
+  String? _error;
 
   @override
   void didChangeDependencies() {
@@ -36,11 +36,19 @@ class _TutorProfileVerificationScreenState
   }
 
   Future<void> _load(String uid) async {
-    final TutorProfile? profile = await context
-        .read<FirestoreService>()
-        .fetchTutor(uid);
-    if (!mounted) return;
-    setState(() => _profile = profile);
+    try {
+      final TutorProfile? profile = await context
+          .read<FirestoreService>()
+          .fetchTutor(uid);
+      if (!mounted) return;
+      setState(() {
+        _profile = profile;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    }
   }
 
   @override
@@ -97,7 +105,7 @@ class _TutorProfileVerificationScreenState
             ),
             const SizedBox(height: 14),
             PillButton(
-              label: _uploading ? 'Uploading…' : 'Upload profile photo',
+              label: _uploading ? 'Saving…' : 'Upload profile photo (bypass)',
               variant: PillButtonVariant.secondary,
               onPressed: _uploading || user == null
                   ? null
@@ -105,7 +113,7 @@ class _TutorProfileVerificationScreenState
             ),
             const SizedBox(height: 8),
             PillButton(
-              label: _uploading ? 'Uploading…' : 'Upload credential',
+              label: _uploading ? 'Saving…' : 'Upload credential (bypass)',
               variant: PillButtonVariant.secondary,
               onPressed: _uploading || user == null
                   ? null
@@ -117,6 +125,14 @@ class _TutorProfileVerificationScreenState
                 label: 'Retry upload',
                 variant: PillButtonVariant.amber,
                 onPressed: _uploading ? null : _retry,
+              ),
+            ],
+            if (_error != null) ...<Widget>[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: Theme.of(context).colorScheme.error),
               ),
             ],
             const SizedBox(height: 24),
@@ -135,44 +151,59 @@ class _TutorProfileVerificationScreenState
   }
 
   Future<void> _pick(String ownerId, UploadPurpose purpose) async {
-    final ClassroomProvider classroom = context.read<ClassroomProvider>();
     final FirestoreService firestore = context.read<FirestoreService>();
-    final PlatformFile? file = await FilePicker.pickFile();
-    final String? path = file?.path;
-    if (path == null) return;
-    setState(() => _uploading = true);
-    final CloudinaryUploadResult? upload = await classroom.uploadFile(
-      filePath: path,
-      purpose: purpose,
-      ownerId: ownerId,
-    );
-    if (!mounted) return;
-    setState(() => _uploading = false);
-    if (upload == null || _profile == null) return;
-    final TutorProfile updated = purpose == UploadPurpose.avatar
-        ? _profile!.copyWith(avatarUrl: upload.secureUrl)
-        : _profile!.copyWith(
-            credentialUrls: <String>[
-              ..._profile!.credentialUrls,
-              upload.secureUrl,
-            ],
+    final AppUser? user = context.read<AuthProvider>().currentUser;
+    setState(() {
+      _uploading = true;
+      _error = null;
+    });
+
+    try {
+      // TEMP BYPASS: Generates placeholder URLs without FilePicker or Cloudinary.
+      final String placeholderUrl = purpose == UploadPurpose.avatar
+          ? 'https://example.com/temp-avatar-$ownerId.png'
+          : 'https://example.com/temp-credential-$ownerId-${DateTime.now().millisecondsSinceEpoch}.pdf';
+
+      final TutorProfile baseProfile =
+          _profile ??
+          TutorProfile(
+            uid: ownerId,
+            displayName: user?.displayName ?? 'Tutor',
+            bio: '',
+            subjects: const <String>[],
+            hourlyRate: 0,
+            meetingRoomInfo: '',
+            avatarUrl: null,
+            credentialUrls: const <String>[],
+            slots: const <TimeSlot>[],
+            verificationStatus: VerificationStatus.pending,
+            rating: 0,
+            ratingCount: 0,
           );
-    await firestore.saveTutorProfile(updated);
-    if (mounted) setState(() => _profile = updated);
+
+      final TutorProfile updated = purpose == UploadPurpose.avatar
+          ? baseProfile.copyWith(avatarUrl: placeholderUrl)
+          : baseProfile.copyWith(
+              credentialUrls: <String>[
+                ...baseProfile.credentialUrls,
+                placeholderUrl,
+              ],
+            );
+
+      await firestore.saveTutorProfile(updated);
+      if (!mounted) return;
+      setState(() => _profile = updated);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
   }
 
   Future<void> _retry() async {
-    final ClassroomProvider classroom = context.read<ClassroomProvider>();
-    final FirestoreService firestore = context.read<FirestoreService>();
-    setState(() => _uploading = true);
-    final CloudinaryUploadResult? upload = await classroom.retryPendingUpload();
-    if (!mounted) return;
-    setState(() => _uploading = false);
-    if (upload == null || _profile == null) return;
-    final TutorProfile updated = _profile!.copyWith(
-      credentialUrls: <String>[..._profile!.credentialUrls, upload.secureUrl],
-    );
-    await firestore.saveTutorProfile(updated);
-    if (mounted) setState(() => _profile = updated);
+    final AppUser? user = context.read<AuthProvider>().currentUser;
+    if (user == null) return;
+    await _pick(user.uid, UploadPurpose.credential);
   }
 }
