@@ -2,6 +2,7 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
     function isSignedIn() {
       return request.auth != null;
     }
@@ -14,6 +15,8 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
 
+    // -------- USERS --------
+    // Unchanged from current repo rules. Role-transition guard is Session 3 work.
     match /users/{uid} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid);
@@ -21,28 +24,65 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // -------- TUTORS --------
+    // Read: public (student browse)
+    // Create: owner only, must start with pending verification + zero rating
+    // Update (owner): cannot change uid, verificationStatus, rating, ratingCount
+    // Update (student, for booking): CAN ONLY touch the 'slots' array field
+    // Delete: disabled
     match /tutors/{uid} {
       allow read: if true;
-      allow create: if isOwner(uid);
-      allow update: if isOwner(uid);
+
+      allow create: if isOwner(uid) &&
+        request.resource.data.uid == uid &&
+        request.resource.data.verificationStatus == 'pending' &&
+        request.resource.data.rating == 0 &&
+        request.resource.data.ratingCount == 0;
+
+      allow update: if isOwner(uid) &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.verificationStatus == resource.data.verificationStatus &&
+        request.resource.data.rating == resource.data.rating &&
+        request.resource.data.ratingCount == resource.data.ratingCount;
+
+      // Slot-lock / booking / reschedule: any signed-in user can write ONLY slots
+      allow update: if isSignedIn() &&
+        affectedKeys().hasOnly(['slots']);
+
       allow delete: if false;
     }
 
+    // -------- BOOKINGS --------
+    // Read: parties only
+    // Create: student creates own booking, paymentMode must be 'simulated', status 'confirmed'
+    // Update (student): only status→'cancelled' OR (slotStart/slotEnd/status→'confirmed') for reschedule
+    // Update (tutor): no rule yet — accept/decline UI doesn't exist. Add in Phase 2.
+    // Delete: disabled
     match /bookings/{bookingId} {
       allow read: if isSignedIn() && (
         resource.data.studentId == request.auth.uid ||
         resource.data.tutorId == request.auth.uid
       );
+
       allow create: if isSignedIn() &&
         request.resource.data.studentId == request.auth.uid &&
-        request.resource.data.paymentMode == 'simulated';
-      allow update: if isSignedIn() && (
-        resource.data.studentId == request.auth.uid ||
-        resource.data.tutorId == request.auth.uid
-      );
+        request.resource.data.paymentMode == 'simulated' &&
+        request.resource.data.status == 'confirmed';
+
+      allow update: if isSignedIn() &&
+        resource.data.studentId == request.auth.uid &&
+        (
+          (affectedKeys().hasOnly(['status']) &&
+           request.resource.data.status == 'cancelled') ||
+          (affectedKeys().hasOnly(['slotStart', 'slotEnd', 'status']) &&
+           request.resource.data.status == 'confirmed')
+        );
+
       allow delete: if false;
     }
 
+    // -------- MODULES --------
+    // Unchanged from current repo rules.
     match /modules/{moduleId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() &&
@@ -53,6 +93,8 @@ service cloud.firestore {
         resource.data.tutorId == request.auth.uid;
     }
 
+    // -------- ASSIGNMENTS --------
+    // Unchanged from current repo rules (already field-whitelisted).
     match /assignments/{assignmentId} {
       allow read: if isSignedIn() && (
         resource.data.tutorId == request.auth.uid ||
@@ -75,6 +117,8 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // -------- EXAMS --------
+    // Unchanged from current repo rules.
     match /exams/{examId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() &&
@@ -85,12 +129,16 @@ service cloud.firestore {
         resource.data.tutorId == request.auth.uid;
     }
 
+    // -------- FLASHCARD DECKS --------
+    // Unchanged from current repo rules.
     match /flashcard_decks/{deckId} {
       allow read, update, delete: if isOwner(resource.data.ownerId);
       allow create: if isSignedIn() &&
         request.resource.data.ownerId == request.auth.uid;
     }
 
+    // -------- MOCK EXAMS --------
+    // Unchanged from current repo rules.
     match /mock_exams/{mockId} {
       allow read, update, delete: if isOwner(resource.data.ownerId);
       allow create: if isSignedIn() &&
