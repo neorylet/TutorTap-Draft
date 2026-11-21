@@ -114,11 +114,7 @@ class _AuthScreenState extends State<AuthScreen> {
         password: _passwordController.text,
       );
     }
-    if (auth.error == null && mounted) {
-      Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
-    } else {
-      _showErrorIfNeeded(auth.error);
-    }
+    _showErrorIfNeeded(auth.error);
   }
 
   Future<void> _signInWithGoogle() async {

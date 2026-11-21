@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../screens/assignment.dart';
-import '../screens/auth.dart';
 import '../screens/booking_detail.dart';
 import '../screens/bookings.dart';
 import '../screens/browse.dart';
@@ -62,7 +61,6 @@ abstract final class AppRoutes {
 
   static final Map<String, WidgetBuilder> routes = <String, WidgetBuilder>{
     onboarding: (BuildContext context) => const OnboardingScreen(),
-    auth: (BuildContext context) => const AuthScreen(),
     roleSelect: (BuildContext context) => const RoleSelectScreen(),
     studentHome: (BuildContext context) => const StudentHomeScreen(),
     browse: (BuildContext context) => const BrowseScreen(),
@@ -79,8 +77,7 @@ abstract final class AppRoutes {
     study: (BuildContext context) => const StudyStudioScreen(),
     flashcards: (BuildContext context) => const FlashcardRunnerScreen(),
     deckForm: (BuildContext context) => const DeckFormScreen(),
-    cardForm: (BuildContext context) =>
-        const DeckFormScreen(cardMode: true),
+    cardForm: (BuildContext context) => const DeckFormScreen(cardMode: true),
     mockBuilder: (BuildContext context) => const MockExamBuilderScreen(),
     studySummary: (BuildContext context) => const StudySummaryScreen(),
     tutorDashboard: (BuildContext context) => const TutorDashboardScreen(),
