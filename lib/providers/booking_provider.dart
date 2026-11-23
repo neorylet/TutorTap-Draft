@@ -108,6 +108,16 @@ class BookingProvider extends ChangeNotifier {
         });
   }
 
+  void watchTutorBookings(String tutorId) {
+    _bookingsSubscription?.cancel();
+    _bookingsSubscription = _firestoreService
+        .watchBookingsForTutor(tutorId)
+        .listen((bookings) {
+          _bookings = bookings;
+          _notify();
+        });
+  }
+
   Future<bool> lockSelectedSlot({required String studentUid}) async {
     final TutorProfile? tutor = _selectedTutor;
     final TimeSlot? slot = _selectedSlot;

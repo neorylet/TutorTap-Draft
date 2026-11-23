@@ -63,6 +63,7 @@ class Booking {
     required this.tutorPayout,
     required this.paymentMode,
     required this.createdAt,
+    this.courseId,
   });
 
   factory Booking.fromMap(Map<String, dynamic> map) {
@@ -75,16 +76,12 @@ class Booking {
       subject: stringFrom(map['subject']),
       slotStart: dateTimeFromFirestore(map['slotStart']) ?? DateTime.now(),
       slotEnd: dateTimeFromFirestore(map['slotEnd']) ?? DateTime.now(),
-      status: enumFrom<BookingStatus>(
-        map['status'],
-        <String, BookingStatus>{
-          'pending': BookingStatus.pending,
-          'confirmed': BookingStatus.confirmed,
-          'completed': BookingStatus.completed,
-          'cancelled': BookingStatus.cancelled,
-        },
-        BookingStatus.pending,
-      ),
+      status: enumFrom<BookingStatus>(map['status'], <String, BookingStatus>{
+        'pending': BookingStatus.pending,
+        'confirmed': BookingStatus.confirmed,
+        'completed': BookingStatus.completed,
+        'cancelled': BookingStatus.cancelled,
+      }, BookingStatus.pending),
       onlineSession: OnlineSession.fromMap(mapFrom(map['onlineSession'])),
       subtotal: doubleFrom(map['subtotal']),
       commissionRate: doubleFrom(
@@ -94,11 +91,9 @@ class Booking {
       commissionAmount: doubleFrom(map['commissionAmount']),
       totalCharged: doubleFrom(map['totalCharged']),
       tutorPayout: doubleFrom(map['tutorPayout']),
-      paymentMode: stringFrom(
-        map['paymentMode'],
-        AppConstants.paymentMode,
-      ),
+      paymentMode: stringFrom(map['paymentMode'], AppConstants.paymentMode),
       createdAt: dateTimeFromFirestore(map['createdAt']) ?? DateTime.now(),
+      courseId: map['courseId'] == null ? null : stringFrom(map['courseId']),
     );
   }
 
@@ -119,6 +114,7 @@ class Booking {
   final double tutorPayout;
   final String paymentMode;
   final DateTime createdAt;
+  final String? courseId;
 
   Map<String, dynamic> toMap() => <String, dynamic>{
     'id': id,
@@ -138,6 +134,7 @@ class Booking {
     'tutorPayout': tutorPayout,
     'paymentMode': paymentMode,
     'createdAt': dateTimeToFirestore(createdAt),
+    'courseId': courseId,
   };
 
   Booking copyWith({
@@ -158,6 +155,7 @@ class Booking {
     double? tutorPayout,
     String? paymentMode,
     DateTime? createdAt,
+    Object? courseId = kUnset,
   }) {
     return Booking(
       id: id ?? this.id,
@@ -177,6 +175,7 @@ class Booking {
       tutorPayout: tutorPayout ?? this.tutorPayout,
       paymentMode: paymentMode ?? this.paymentMode,
       createdAt: createdAt ?? this.createdAt,
+      courseId: courseId == kUnset ? this.courseId : courseId as String?,
     );
   }
 }

@@ -5,18 +5,22 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/app_user.dart';
 import '../models/assignment.dart';
-import '../models/classroom_module.dart';
+import '../models/booking.dart';
 import '../models/course.dart';
 import '../models/exam.dart';
+import '../models/time_slot.dart';
+import '../models/tutor_profile.dart';
 import '../providers/auth_provider.dart';
+import '../providers/booking_provider.dart';
 import '../providers/classroom_provider.dart';
 import '../routing/app_routes.dart';
+import '../services/firestore_service.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/labeled_fields_dialog.dart';
 import '../widgets/segmented_control.dart';
 import '../widgets/status_badge.dart';
-import 'create_assignment_screen.dart';
 import 'assignment_preview_screen.dart';
+import 'create_assignment_screen.dart';
 import 'create_exam_screen.dart';
 import 'exam_preview_screen.dart';
 import 'screen_scaffold.dart';
@@ -28,18 +32,109 @@ class TutorClassroomScreen extends StatefulWidget {
   State<TutorClassroomScreen> createState() => _TutorClassroomScreenState();
 }
 
+class _SessionEntry {
+  const _SessionEntry({
+    required this.time,
+    required this.courseId,
+    required this.courseTitle,
+    required this.status,
+    required this.isBooked,
+    required this.studentName,
+    required this.statusDetail,
+    required this.booking,
+  });
+
+  final DateTime time;
+  final String? courseId;
+  final String courseTitle;
+  final String status;
+  final bool isBooked;
+  final String? studentName;
+  final String? statusDetail;
+  final Booking? booking;
+}
+
+class _SessionTile extends StatelessWidget {
+  const _SessionTile({required this.entry, required this.onTap});
+
+  final _SessionEntry entry;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<String> statusParts = <String>[entry.status];
+    if (entry.statusDetail != null && entry.statusDetail!.isNotEmpty) {
+      statusParts.add(entry.statusDetail!);
+    }
+    if (entry.studentName != null && entry.studentName!.isNotEmpty) {
+      statusParts.add(entry.studentName!);
+    }
+
+    final Widget card = SectionCard(
+      child: Row(
+        children: <Widget>[
+          Icon(
+            entry.isBooked
+                ? Icons.event_busy_outlined
+                : Icons.schedule_outlined,
+            color: entry.isBooked
+                ? Theme.of(context).colorScheme.primary
+                : Colors.green,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  DateFormat('EEE d MMM, h:mm a').format(entry.time),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  entry.courseTitle,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  statusParts.join(' · '),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: entry.isBooked
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.green,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (entry.booking != null) const Icon(Icons.chevron_right),
+        ],
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: onTap == null
+          ? card
+          : InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(16),
+              child: card,
+            ),
+    );
+  }
+}
+
 class _ExamListTile extends StatelessWidget {
   const _ExamListTile({
     required this.exam,
     required this.onTap,
-    required this.onAttach,
     required this.onEdit,
     required this.onDelete,
   });
 
   final Exam exam;
   final VoidCallback onTap;
-  final VoidCallback onAttach;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -56,15 +151,23 @@ class _ExamListTile extends StatelessWidget {
                 const Icon(Icons.quiz_outlined),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    '${exam.title} · ${exam.questions.length} questions',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        '${exam.title} · ${exam.questions.length} questions',
+                      ),
+                      if (exam.dueDate != null)
+                        Text(
+                          'Due ${DateFormat('d MMM, h:mm a').format(exam.dueDate!)}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
                   ),
                 ),
-                if (exam.moduleId == null)
-                  TextButton(onPressed: onAttach, child: const Text('Attach')),
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
-                  onSelected: (String value) async {
+                  onSelected: (String value) {
                     if (value == 'edit') {
                       onEdit();
                     } else if (value == 'delete') {
@@ -157,7 +260,7 @@ class _AssignmentListTile extends StatelessWidget {
               StatusBadge.fromStatus(assignment.status.value),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert),
-                onSelected: (String value) async {
+                onSelected: (String value) {
                   if (value == 'edit') {
                     onEdit();
                   } else if (value == 'delete') {
@@ -254,13 +357,14 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
     if (_initialized) return;
     _initialized = true;
 
-    // FIX: Use addPostFrameCallback to prevent modifying provider state during the build phase
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final String? uid = context.read<AuthProvider>().currentUser?.uid;
-      if (uid != null) {
-        context.read<ClassroomProvider>().watchTutorClassroom(uid);
-      }
+      if (uid == null) return;
+      context.read<ClassroomProvider>().watchTutorClassroom(uid);
+      final BookingProvider bookings = context.read<BookingProvider>();
+      bookings.watchTutorSlots(uid);
+      bookings.watchTutorBookings(uid);
     });
   }
 
@@ -280,25 +384,49 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
     final List<Exam> exams = context.select<ClassroomProvider, List<Exam>>(
       (ClassroomProvider provider) => provider.exams,
     );
+    final List<TimeSlot> slots = context
+        .select<BookingProvider, List<TimeSlot>>(
+          (BookingProvider provider) => provider.slots,
+        );
+    final List<Booking> bookings = context
+        .select<BookingProvider, List<Booking>>(
+          (BookingProvider provider) => provider.bookings,
+        );
 
     return ScreenScaffold(
       title: 'Classroom',
       subtitle: 'Materials, assignments and exams.',
       showBack: false,
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _add(user?.uid),
+        onPressed: () {
+          if (_tab == 'sessions') {
+            if (user?.uid != null) {
+              Navigator.of(context).pushNamed(AppRoutes.tutorAvailability);
+            }
+            return;
+          }
+          _add(user?.uid);
+        },
         child: const Icon(Icons.add),
       ),
       body: Column(
         children: <Widget>[
           SegmentedControl<String>(
-            values: const <String>['courses', 'assignments', 'exams'],
+            values: const <String>[
+              'courses',
+              'assignments',
+              'exams',
+              'sessions',
+            ],
             value: _tab,
             onChanged: (String value) => setState(() => _tab = value),
+            scrollable: true,
             labelBuilder: (String value) => switch (value) {
               'courses' => 'Courses',
               'assignments' => 'Assignments',
-              _ => 'Exams',
+              'exams' => 'Exams',
+              'sessions' => 'Sessions',
+              _ => value,
             },
           ),
           const SizedBox(height: 14),
@@ -359,7 +487,7 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
                           );
                         },
                       ),
-              _ =>
+              'exams' =>
                 exams.isEmpty
                     ? const EmptyHint(message: 'No exams yet.')
                     : ListView.builder(
@@ -376,8 +504,6 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
                                 ),
                               ),
                             ),
-                            onAttach: () =>
-                                _showAttachExamDialog(context, exam.id),
                             onEdit: () => Navigator.of(context).push(
                               MaterialPageRoute<void>(
                                 builder: (_) => CreateExamScreen(
@@ -392,10 +518,164 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
                           );
                         },
                       ),
+              'sessions' => _buildSessionsTab(
+                tutorId: user?.uid,
+                courses: courses,
+                slots: slots,
+                bookings: bookings,
+              ),
+              _ => const SizedBox.shrink(),
             },
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSessionsTab({
+    required String? tutorId,
+    required List<Course> courses,
+    required List<TimeSlot> slots,
+    required List<Booking> bookings,
+  }) {
+    if (tutorId == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final Map<String, String> courseTitles = <String, String>{
+      for (final Course course in courses) course.id: course.title,
+    };
+    String titleFor(String? courseId) {
+      if (courseId == null) return 'No course';
+      return courseTitles[courseId] ?? 'No course';
+    }
+
+    final DateTime now = DateTime.now();
+    final List<Booking> tutorBookings = bookings
+        .where((Booking booking) => booking.tutorId == tutorId)
+        .toList(growable: false);
+    final List<_SessionEntry> entries = <_SessionEntry>[];
+
+    for (final TimeSlot slot in slots) {
+      final Booking? matchedBooking = slot.isBooked
+          ? tutorBookings
+                .where(
+                  (Booking booking) =>
+                      booking.slotStart.isAtSameMomentAs(slot.start),
+                )
+                .cast<Booking?>()
+                .firstOrNull
+          : null;
+      if (slot.isBooked && matchedBooking != null) continue;
+
+      entries.add(
+        _SessionEntry(
+          time: slot.start,
+          courseId: slot.courseId,
+          courseTitle: titleFor(slot.courseId),
+          status: slot.isBooked ? 'Booked' : 'Open',
+          isBooked: slot.isBooked,
+          studentName: null,
+          statusDetail: null,
+          booking: null,
+        ),
+      );
+    }
+
+    for (final Booking booking in tutorBookings) {
+      entries.add(
+        _SessionEntry(
+          time: booking.slotStart,
+          courseId: booking.courseId,
+          courseTitle: titleFor(booking.courseId),
+          status: 'Booked',
+          isBooked: true,
+          studentName: booking.studentName,
+          statusDetail: booking.status.value,
+          booking: booking,
+        ),
+      );
+    }
+
+    if (entries.isEmpty) {
+      return const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          EmptyHint(message: 'No sessions yet.'),
+          Text(
+            'Add availability to see your sessions here.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+        ],
+      );
+    }
+
+    entries.sort(
+      (_SessionEntry a, _SessionEntry b) => a.time.compareTo(b.time),
+    );
+    final List<_SessionEntry> upcoming = entries
+        .where((_SessionEntry entry) => !entry.time.isBefore(now))
+        .toList(growable: false);
+    final List<_SessionEntry> past = entries
+        .where((_SessionEntry entry) => entry.time.isBefore(now))
+        .toList(growable: false);
+
+    Widget tileFor(_SessionEntry entry) {
+      return _SessionTile(
+        entry: entry,
+        onTap: entry.booking == null
+            ? null
+            : () => Navigator.of(context)
+                  .pushNamed(AppRoutes.bookingDetail, arguments: entry.booking),
+      );
+    }
+
+    final Map<String?, List<_SessionEntry>> grouped =
+        <String?, List<_SessionEntry>>{};
+    for (final _SessionEntry entry in upcoming) {
+      final String? courseId = entry.courseId;
+      final String? key =
+          courseId != null && !courseTitles.containsKey(courseId)
+          ? null
+          : courseId;
+      grouped.putIfAbsent(key, () => <_SessionEntry>[]).add(entry);
+    }
+
+    final List<String?> groupKeys = grouped.keys.toList(growable: true)
+      ..sort((String? a, String? b) {
+        if (a == null) return 1;
+        if (b == null) return -1;
+        final int aIndex = courses.indexWhere((Course c) => c.id == a);
+        final int bIndex = courses.indexWhere((Course c) => c.id == b);
+        return (aIndex < 0 ? 1 << 30 : aIndex).compareTo(
+          bIndex < 0 ? 1 << 30 : bIndex,
+        );
+      });
+
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 16),
+      children: <Widget>[
+        for (final String? key in groupKeys) ...<Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 4, 0, 8),
+            child: Text(
+              key == null ? 'No course' : courseTitles[key] ?? 'No course',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          for (final _SessionEntry entry in grouped[key]!) tileFor(entry),
+          const SizedBox(height: 12),
+        ],
+        if (past.isNotEmpty)
+          ExpansionTile(
+            title: Text('Past (${past.length})'),
+            initiallyExpanded: false,
+            children: <Widget>[
+              for (final _SessionEntry entry in past) tileFor(entry),
+            ],
+          ),
+      ],
     );
   }
 
@@ -436,108 +716,9 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
     );
   }
 
-  Future<void> _showAttachExamDialog(
-    BuildContext context,
-    String examId,
-  ) async {
-    final List<Course> courses = context
-        .select<ClassroomProvider, List<Course>>(
-          (ClassroomProvider p) => p.courses,
-        );
-    final List<ClassroomModule> modules = context
-        .select<ClassroomProvider, List<ClassroomModule>>(
-          (ClassroomProvider p) => p.modules,
-        );
-
-    if (courses.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No courses available to attach to.')),
-        );
-      }
-      return;
-    }
-
-    final String? selectedCourseId = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Select Course'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: courses.length,
-            itemBuilder: (context, index) {
-              final Course course = courses[index];
-              return ListTile(
-                title: Text(course.title),
-                onTap: () => Navigator.of(dialogContext).pop(course.id),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-
-    if (selectedCourseId == null || !mounted) return;
-
-    final List<ClassroomModule> courseModules = modules
-        .where((m) => m.courseId == selectedCourseId)
-        .toList();
-
-    if (courseModules.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No modules in this course.')),
-        );
-      }
-      return;
-    }
-
-    final String? selectedModuleId = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Select Module'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: courseModules.length,
-            itemBuilder: (context, index) {
-              final ClassroomModule module = courseModules[index];
-              return ListTile(
-                title: Text(module.title),
-                onTap: () => Navigator.of(dialogContext).pop(module.id),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-
-    if (selectedModuleId == null || !mounted) return;
-
-    final ClassroomProvider provider = context.read<ClassroomProvider>();
-    final bool success = await provider.attachExamToModule(
-      examId: examId,
-      moduleId: selectedModuleId,
-    );
-
-    if (!mounted) return;
-
-    if (!success) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to attach: ${provider.error}')),
-        );
-      }
-    }
-  }
-
   Future<void> _showDeleteExamDialog(BuildContext context, Exam exam) async {
     final ClassroomProvider classroomProvider = context
         .read<ClassroomProvider>();
-    // ignore: use_build_context_synchronously
     final ScaffoldMessengerState scaffoldMessenger = ScaffoldMessenger.of(
       context,
     );
@@ -556,8 +737,7 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
       ),
     );
 
-    if (confirmed != true) return;
-    if (!mounted) return;
+    if (confirmed != true || !mounted) return;
 
     final bool success = await classroomProvider.deleteExam(examId: exam.id);
 
@@ -579,7 +759,6 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
   ) async {
     final ClassroomProvider classroomProvider = context
         .read<ClassroomProvider>();
-    // ignore: use_build_context_synchronously
     final ScaffoldMessengerState scaffoldMessenger = ScaffoldMessenger.of(
       context,
     );
@@ -593,8 +772,7 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
       ),
     );
 
-    if (confirmed != true) return;
-    if (!mounted) return;
+    if (confirmed != true || !mounted) return;
 
     final bool success = await classroomProvider.deleteAssignment(
       assignmentId: assignment.id,
@@ -626,7 +804,8 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
   ) async {
     final ClassroomProvider classroomProvider = context
         .read<ClassroomProvider>();
-    // ignore: use_build_context_synchronously
+    final FirestoreService firestoreService = context.read<FirestoreService>();
+    final String? tutorId = context.read<AuthProvider>().currentUser?.uid;
     final ScaffoldMessengerState scaffoldMessenger = ScaffoldMessenger.of(
       context,
     );
@@ -641,7 +820,24 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
+
+    if (tutorId != null) {
+      final TutorProfile? profile = await firestoreService.fetchTutor(tutorId);
+      if (profile != null && profile.slots.any((s) => s.courseId == courseId)) {
+        final List<TimeSlot> updatedSlots = profile.slots
+            .map(
+              (TimeSlot slot) => slot.courseId == courseId
+                  ? slot.copyWith(courseId: null)
+                  : slot,
+            )
+            .toList(growable: false);
+        await firestoreService.saveTutorProfile(
+          profile.copyWith(slots: updatedSlots),
+        );
+      }
+    }
+
     if (!mounted) return;
 
     final bool success = await classroomProvider.deleteCourse(

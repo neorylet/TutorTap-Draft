@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/exam.dart';
 import '../models/question.dart';
 import '../providers/classroom_provider.dart';
+import '../widgets/due_date_tile.dart';
 import 'screen_scaffold.dart';
 
 class CreateExamScreen extends StatefulWidget {
@@ -25,11 +26,13 @@ class CreateExamScreen extends StatefulWidget {
 class _CreateExamScreenState extends State<CreateExamScreen> {
   late final TextEditingController _titleController;
   final List<_QuestionData> _questions = <_QuestionData>[];
+  DateTime? _dueDate;
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController();
+    _dueDate = widget.existingExam?.dueDate;
     if (widget.existingExam != null) {
       _titleController.text = widget.existingExam!.title;
       for (final Question q in widget.existingExam!.questions) {
@@ -100,6 +103,7 @@ class _CreateExamScreenState extends State<CreateExamScreen> {
       timeLimitMin: 15,
       questions: questions,
       attempts: <ExamAttempt>[],
+      dueDate: _dueDate,
       moduleId: widget.moduleId,
     );
 
@@ -137,6 +141,7 @@ class _CreateExamScreenState extends State<CreateExamScreen> {
     final Exam exam = widget.existingExam!.copyWith(
       title: _titleController.text.trim(),
       questions: questions,
+      dueDate: _dueDate,
       moduleId: widget.moduleId,
     );
 
@@ -172,6 +177,17 @@ class _CreateExamScreenState extends State<CreateExamScreen> {
                 border: OutlineInputBorder(),
               ),
               onChanged: (_) => setState(() {}),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: DueDateTile(
+              dueDate: _dueDate,
+              onChanged: (DateTime? value) {
+                setState(() => _dueDate = value);
+              },
+              isRequired: false,
+              isBusy: false,
             ),
           ),
           Expanded(

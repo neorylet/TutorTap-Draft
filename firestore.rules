@@ -43,11 +43,21 @@ service cloud.firestore {
         request.resource.data.uid == resource.data.uid &&
         request.resource.data.verificationStatus == resource.data.verificationStatus &&
         request.resource.data.rating == resource.data.rating &&
-        request.resource.data.ratingCount == resource.data.ratingCount;
+        request.resource.data.ratingCount == resource.data.ratingCount &&
+        (!('slots' in request.resource.data) ||
+          request.resource.data.slots.every(slot =>
+            slot.courseId == null ||
+            get(/databases/$(database)/documents/courses/$(slot.courseId)).data.tutorId == uid
+          ));
 
       // Slot-lock / booking / reschedule: any signed-in user can write ONLY slots
+      // Additionally, if a slot has a courseId, it must reference a course owned by this tutor
       allow update: if isSignedIn() &&
-        affectedKeys().hasOnly(['slots']);
+        affectedKeys().hasOnly(['slots']) &&
+        request.resource.data.slots.every(slot =>
+          slot.courseId == null ||
+          get(/databases/$(database)/documents/courses/$(slot.courseId)).data.tutorId == uid
+        );
 
       allow delete: if false;
     }

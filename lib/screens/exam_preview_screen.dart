@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/classroom_module.dart';
@@ -52,11 +53,21 @@ class ExamPreviewScreen extends StatelessWidget {
             if (exam.moduleId == null)
               const PopupMenuItem<String>(
                 value: 'attach',
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Icon(Icons.link),
-                    SizedBox(width: 8),
-                    Text('Attach to module'),
+                    Row(
+                      children: <Widget>[
+                        Icon(Icons.link),
+                        SizedBox(width: 8),
+                        Text('Attach to module'),
+                      ],
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Shows this quiz at the end of the module.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                   ],
                 ),
               )
@@ -84,70 +95,90 @@ class ExamPreviewScreen extends StatelessWidget {
           ],
         ),
       ],
-      body: ListView.separated(
+      body: ListView(
         padding: const EdgeInsets.all(16),
-        itemCount: exam.questions.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 16),
-        itemBuilder: (context, index) {
-          final question = exam.questions[index];
-          return Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Question ${index + 1}',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(question.prompt),
-                  const SizedBox(height: 12),
-                  ...List.generate(question.choices.length, (int i) {
-                    final bool isCorrect = question.answerIndex == i;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Row(
-                        children: <Widget>[
-                          Icon(
-                            isCorrect
-                                ? Icons.check_circle
-                                : Icons.circle_outlined,
-                            color: isCorrect ? Colors.green : Colors.grey,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              question.choices[i],
-                              style: TextStyle(
-                                fontWeight: isCorrect
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                              ),
+        children: <Widget>[
+          if (exam.dueDate != null)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: <Widget>[
+                    const Icon(Icons.event_outlined),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Due ${DateFormat('d MMM, h:mm a').format(exam.dueDate!)}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (exam.dueDate != null) const SizedBox(height: 16),
+          ...List.generate(exam.questions.length, (int index) {
+            final question = exam.questions[index];
+            return Card(
+              margin: EdgeInsets.only(
+                bottom: index < exam.questions.length - 1 ? 16 : 0,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Question ${index + 1}',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(question.prompt),
+                    const SizedBox(height: 12),
+                    ...List.generate(question.choices.length, (int i) {
+                      final bool isCorrect = question.answerIndex == i;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          children: <Widget>[
+                            Icon(
+                              isCorrect
+                                  ? Icons.check_circle
+                                  : Icons.circle_outlined,
+                              color: isCorrect ? Colors.green : Colors.grey,
+                              size: 20,
                             ),
-                          ),
-                          if (isCorrect)
-                            const Padding(
-                              padding: EdgeInsets.only(left: 8),
+                            const SizedBox(width: 8),
+                            Expanded(
                               child: Text(
-                                'Correct answer',
+                                question.choices[i],
                                 style: TextStyle(
-                                  color: Colors.green,
-                                  fontSize: 12,
-                                  fontStyle: FontStyle.italic,
+                                  fontWeight: isCorrect
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
                                 ),
                               ),
                             ),
-                        ],
-                      ),
-                    );
-                  }),
-                ],
+                            if (isCorrect)
+                              const Padding(
+                                padding: EdgeInsets.only(left: 8),
+                                child: Text(
+                                  'Correct answer',
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontSize: 12,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          }),
+        ],
       ),
     );
   }

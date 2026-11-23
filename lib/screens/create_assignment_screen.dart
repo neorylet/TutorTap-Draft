@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../core/constants/cloudinary_config.dart';
@@ -10,6 +9,7 @@ import '../models/assignment.dart';
 import '../providers/classroom_provider.dart';
 import '../services/cloudinary_service.dart';
 import '../widgets/app_form_field.dart';
+import '../widgets/due_date_tile.dart';
 import 'screen_scaffold.dart';
 
 class CreateAssignmentScreen extends StatefulWidget {
@@ -56,40 +56,6 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
             : 'existing file';
       }
     }
-  }
-
-  Future<void> _pickDueDate() async {
-    final DateTime now = DateTime.now();
-    final DateTime? pickedDate = await showDatePicker(
-      context: context,
-      initialDate: _dueDate.isBefore(now) ? now : _dueDate,
-      firstDate: DateTime(now.year, now.month, now.day),
-      lastDate: DateTime(now.year + 5, now.month, now.day),
-    );
-    if (pickedDate == null || !mounted) return;
-
-    final TimeOfDay? pickedTime = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(_dueDate),
-    );
-    if (pickedTime == null || !mounted) return;
-
-    final DateTime dueDate = DateTime(
-      pickedDate.year,
-      pickedDate.month,
-      pickedDate.day,
-      pickedTime.hour,
-      pickedTime.minute,
-    );
-    if (dueDate.isBefore(DateTime.now())) {
-      setState(() => _errorMessage = 'Due date must be in the future.');
-      return;
-    }
-
-    setState(() {
-      _dueDate = dueDate;
-      _errorMessage = null;
-    });
   }
 
   Future<void> _pickFile() async {
@@ -291,33 +257,15 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
                     onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: 14),
-                  SectionCard(
-                    child: Row(
-                      children: <Widget>[
-                        const Icon(Icons.event_outlined),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                'Due date',
-                                style: Theme.of(context).textTheme.labelMedium,
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                DateFormat('d MMM, h:mm a').format(_dueDate),
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                            ],
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: isBusy ? null : _pickDueDate,
-                          child: const Text('Change'),
-                        ),
-                      ],
-                    ),
+                  DueDateTile(
+                    dueDate: _dueDate,
+                    onChanged: (DateTime? value) {
+                      if (value != null) {
+                        setState(() => _dueDate = value);
+                      }
+                    },
+                    isRequired: true,
+                    isBusy: isBusy,
                   ),
                   const SizedBox(height: 14),
                   if (_pickedFileName != null) ...<Widget>[

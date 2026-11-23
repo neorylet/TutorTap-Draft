@@ -9,6 +9,7 @@ class TimeSlot {
     this.lockedBy,
     this.lockExpiresAt,
     this.bookedBy,
+    this.courseId,
   });
 
   factory TimeSlot.fromMap(Map<String, dynamic> map) {
@@ -19,6 +20,7 @@ class TimeSlot {
       lockedBy: map['lockedBy'] as String?,
       lockExpiresAt: dateTimeFromFirestore(map['lockExpiresAt']),
       bookedBy: map['bookedBy'] as String?,
+      courseId: map['courseId'] as String?,
     );
   }
 
@@ -28,6 +30,7 @@ class TimeSlot {
   final String? lockedBy;
   final DateTime? lockExpiresAt;
   final String? bookedBy;
+  final String? courseId;
 
   Map<String, dynamic> toMap() => <String, dynamic>{
     'id': id,
@@ -36,6 +39,7 @@ class TimeSlot {
     'lockedBy': lockedBy,
     'lockExpiresAt': dateTimeToFirestore(lockExpiresAt),
     'bookedBy': bookedBy,
+    'courseId': courseId,
   };
 
   TimeSlot copyWith({
@@ -45,6 +49,7 @@ class TimeSlot {
     Object? lockedBy = kUnset,
     Object? lockExpiresAt = kUnset,
     Object? bookedBy = kUnset,
+    Object? courseId = kUnset,
   }) {
     return TimeSlot(
       id: id ?? this.id,
@@ -55,6 +60,7 @@ class TimeSlot {
           ? this.lockExpiresAt
           : dateTimeFromFirestore(lockExpiresAt),
       bookedBy: bookedBy == kUnset ? this.bookedBy : bookedBy as String?,
+      courseId: courseId == kUnset ? this.courseId : courseId as String?,
     );
   }
 
@@ -68,8 +74,7 @@ class TimeSlot {
     return expiry.isAfter(now);
   }
 
-  bool isLockedBy(String uid, DateTime now) =>
-      isLocked(now) && lockedBy == uid;
+  bool isLockedBy(String uid, DateTime now) => isLocked(now) && lockedBy == uid;
 
   bool isAvailable(DateTime now) => !isBooked && !isLocked(now);
 

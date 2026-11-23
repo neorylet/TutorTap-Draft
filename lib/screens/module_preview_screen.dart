@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -127,6 +128,11 @@ class ModulePreviewScreen extends StatelessWidget {
                         Text(
                           '${attachedExam.title} · ${attachedExam.questions.length} questions',
                         ),
+                        if (attachedExam.dueDate != null)
+                          Text(
+                            'Due ${DateFormat('d MMM, h:mm a').format(attachedExam.dueDate!)}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
                         const SizedBox(height: 12),
                         FilledButton.icon(
                           onPressed: () => Navigator.of(context).push(
