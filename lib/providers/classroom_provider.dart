@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../core/constants/cloudinary_config.dart';
 import '../models/assignment.dart';
 import '../models/classroom_module.dart';
+import '../models/course.dart';
 import '../models/exam.dart';
 import '../services/cloudinary_service.dart';
 import '../services/firestore_service.dart';
@@ -51,10 +52,12 @@ class ClassroomProvider extends ChangeNotifier {
   StreamSubscription<List<ClassroomModule>>? _modulesSubscription;
   StreamSubscription<List<Assignment>>? _assignmentsSubscription;
   StreamSubscription<List<Exam>>? _examsSubscription;
+  StreamSubscription<List<Course>>? _coursesSubscription;
 
   List<ClassroomModule> _modules = <ClassroomModule>[];
   List<Assignment> _assignments = <Assignment>[];
   List<Exam> _exams = <Exam>[];
+  List<Course> _courses = <Course>[];
   PendingUpload? _pendingUpload;
   bool _isUploading = false;
   String? _error;
@@ -63,18 +66,20 @@ class ClassroomProvider extends ChangeNotifier {
   List<ClassroomModule> get modules => _modules;
   List<Assignment> get assignments => _assignments;
   List<Exam> get exams => _exams;
+  List<Course> get courses => _courses;
   PendingUpload? get pendingUpload => _pendingUpload;
   bool get isUploading => _isUploading;
   String? get error => _error;
 
   void watchTutorClassroom(String tutorId) {
     _cancelSubscriptions();
-    _modulesSubscription = _firestoreService
-        .watchModules(tutorId)
-        .listen((items) {
-          _modules = items;
-          _notify();
-        });
+    watchCoursesForTutor(tutorId);
+    _modulesSubscription = _firestoreService.watchModules(tutorId).listen((
+      items,
+    ) {
+      _modules = items;
+      _notify();
+    });
     _assignmentsSubscription = _firestoreService
         .watchAssignmentsForTutor(tutorId)
         .listen((items) {
@@ -97,6 +102,16 @@ class ClassroomProvider extends ChangeNotifier {
         });
   }
 
+  void watchCoursesForTutor(String tutorId) {
+    _coursesSubscription?.cancel();
+    _coursesSubscription = _firestoreService
+        .watchCoursesForTutor(tutorId)
+        .listen((items) {
+          _courses = items;
+          _notify();
+        });
+  }
+
   Future<CloudinaryUploadResult?> uploadFile({
     required String filePath,
     required UploadPurpose purpose,
@@ -108,8 +123,9 @@ class ClassroomProvider extends ChangeNotifier {
       UploadPurpose.avatar => CloudinaryConfig.avatarFolder(ownerId),
       UploadPurpose.credential => CloudinaryConfig.credentialFolder(ownerId),
       UploadPurpose.module => CloudinaryConfig.moduleFolder(ownerId),
-      UploadPurpose.submission =>
-        CloudinaryConfig.submissionFolder(assignmentId ?? ownerId),
+      UploadPurpose.submission => CloudinaryConfig.submissionFolder(
+        assignmentId ?? ownerId,
+      ),
     };
 
     final PendingUpload pending = PendingUpload(
@@ -182,6 +198,57 @@ class ClassroomProvider extends ChangeNotifier {
     );
   }
 
+  Future<void> createCourse({
+    required String tutorId,
+    required String title,
+    required String description,
+    required String subject,
+  }) async {
+    try {
+      await _firestoreService.createCourse(
+        tutorId: tutorId,
+        title: title,
+        description: description,
+        subject: subject,
+      );
+      _error = null;
+      _notify();
+    } catch (error) {
+      _error = error.toString();
+      _notify();
+    }
+  }
+
+  Future<void> createModuleInCourse({
+    required String tutorId,
+    required String courseId,
+    required String title,
+    required String description,
+    required int orderIndex,
+  }) async {
+    try {
+      final DateTime now = DateTime.now();
+      await _firestoreService.addModule(
+        ClassroomModule(
+          id: '',
+          tutorId: tutorId,
+          title: title,
+          description: description,
+          fileUrl: '',
+          fileType: '',
+          createdAt: now,
+          courseId: courseId,
+          orderIndex: orderIndex,
+        ),
+      );
+      _error = null;
+      _notify();
+    } catch (error) {
+      _error = error.toString();
+      _notify();
+    }
+  }
+
   Future<void> createAssignment({
     required String tutorId,
     required String studentId,
@@ -209,15 +276,12 @@ class ClassroomProvider extends ChangeNotifier {
     String? submissionText,
     String? submissionUrl,
   }) async {
-    await _firestoreService.updateAssignment(
-      assignment.id,
-      <String, dynamic>{
-        'submissionText': submissionText ?? assignment.submissionText,
-        'submissionUrl': submissionUrl ?? assignment.submissionUrl,
-        'submittedAt': DateTime.now().toIso8601String(),
-        'status': AssignmentStatus.submitted.value,
-      },
-    );
+    await _firestoreService.updateAssignment(assignment.id, <String, dynamic>{
+      'submissionText': submissionText ?? assignment.submissionText,
+      'submissionUrl': submissionUrl ?? assignment.submissionUrl,
+      'submittedAt': DateTime.now().toIso8601String(),
+      'status': AssignmentStatus.submitted.value,
+    });
   }
 
   Future<void> gradeAssignment({
@@ -225,14 +289,11 @@ class ClassroomProvider extends ChangeNotifier {
     required double grade,
     required String feedback,
   }) async {
-    await _firestoreService.updateAssignment(
-      assignmentId,
-      <String, dynamic>{
-        'grade': grade,
-        'feedback': feedback,
-        'status': AssignmentStatus.graded.value,
-      },
-    );
+    await _firestoreService.updateAssignment(assignmentId, <String, dynamic>{
+      'grade': grade,
+      'feedback': feedback,
+      'status': AssignmentStatus.graded.value,
+    });
   }
 
   Future<void> createExam(Exam exam) => _firestoreService.addExam(exam);
@@ -247,6 +308,7 @@ class ClassroomProvider extends ChangeNotifier {
     _modulesSubscription?.cancel();
     _assignmentsSubscription?.cancel();
     _examsSubscription?.cancel();
+    _coursesSubscription?.cancel();
   }
 
   void _notify() {

@@ -32,19 +32,32 @@ Future<void> main() async {
   final AuthProvider authProvider = AuthProvider(AuthService());
   authProvider.initialize();
 
-  runApp(TutorTapApp(authProvider: authProvider));
+  final FirestoreService firestoreService = FirestoreService();
+  final CloudinaryService cloudinaryService = CloudinaryService();
+
+  runApp(
+    TutorTapApp(
+      authProvider: authProvider,
+      firestoreService: firestoreService,
+      cloudinaryService: cloudinaryService,
+    ),
+  );
 }
 
 class TutorTapApp extends StatelessWidget {
-  const TutorTapApp({super.key, required this.authProvider});
+  const TutorTapApp({
+    super.key,
+    required this.authProvider,
+    required this.firestoreService,
+    required this.cloudinaryService,
+  });
 
   final AuthProvider authProvider;
+  final FirestoreService firestoreService;
+  final CloudinaryService cloudinaryService;
 
   @override
   Widget build(BuildContext context) {
-    final FirestoreService firestoreService = FirestoreService();
-    final CloudinaryService cloudinaryService = CloudinaryService();
-
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthProvider>.value(value: authProvider),

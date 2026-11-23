@@ -5,6 +5,7 @@ import '../core/utils/firestore_value.dart';
 import '../models/assignment.dart';
 import '../models/booking.dart';
 import '../models/classroom_module.dart';
+import '../models/course.dart';
 import '../models/exam.dart';
 import '../models/flashcard_deck.dart';
 import '../models/mock_exam.dart';
@@ -41,6 +42,8 @@ class FirestoreService {
       _firestore.collection('tutors');
   CollectionReference<Map<String, dynamic>> get bookings =>
       _firestore.collection('bookings');
+  CollectionReference<Map<String, dynamic>> get courses =>
+      _firestore.collection('courses');
   CollectionReference<Map<String, dynamic>> get modules =>
       _firestore.collection('modules');
   CollectionReference<Map<String, dynamic>> get assignments =>
@@ -143,6 +146,45 @@ class FirestoreService {
         .where('tutorId', isEqualTo: tutorId)
         .snapshots()
         .map(_assignmentsFromSnapshot);
+  }
+
+  Stream<List<Course>> watchCoursesForTutor(String tutorId) {
+    return courses
+        .where('tutorId', isEqualTo: tutorId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map(
+          (QuerySnapshot<Map<String, dynamic>> snapshot) => snapshot.docs
+              .map(
+                (QueryDocumentSnapshot<Map<String, dynamic>> doc) =>
+                    Course.fromMap(<String, dynamic>{
+                      ...doc.data(),
+                      'id': doc.id,
+                    }),
+              )
+              .toList(growable: true),
+        );
+  }
+
+  Future<Course> createCourse({
+    required String tutorId,
+    required String title,
+    required String description,
+    required String subject,
+  }) async {
+    final DateTime now = DateTime.now();
+    final DocumentReference<Map<String, dynamic>> ref = courses.doc();
+    final Course course = Course(
+      id: ref.id,
+      tutorId: tutorId,
+      title: title,
+      description: description,
+      subject: subject,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await ref.set(course.toMap());
+    return course;
   }
 
   Stream<List<Exam>> watchExams(String tutorId) {

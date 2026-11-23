@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../models/course.dart';
 import '../screens/assignment.dart';
 import '../screens/booking_detail.dart';
 import '../screens/bookings.dart';
 import '../screens/browse.dart';
 import '../screens/checkout.dart';
 import '../screens/confirmation.dart';
+import '../screens/course_detail_screen.dart';
 import '../screens/deck_form.dart';
 import '../screens/exam_intro.dart';
 import '../screens/flashcard_runner.dart';
@@ -58,6 +60,7 @@ abstract final class AppRoutes {
   static const String tutorEarnings = '/tutor-earnings';
   static const String tutorProfileVerification = '/tutor-profile-settings';
   static const String tutorAvailability = '/tutor-availability';
+  static const String courseDetail = '/course-detail';
 
   static final Map<String, WidgetBuilder> routes = <String, WidgetBuilder>{
     onboarding: (BuildContext context) => const OnboardingScreen(),
@@ -90,5 +93,13 @@ abstract final class AppRoutes {
         const TutorProfileVerificationScreen(),
     tutorAvailability: (BuildContext context) =>
         const TutorAvailabilityScreen(),
+    courseDetail: (BuildContext context) {
+      final Course? course =
+          ModalRoute.of(context)?.settings.arguments as Course?;
+      if (course == null) {
+        return const Scaffold(body: Center(child: Text('Course not found')));
+      }
+      return CourseDetailScreen(course: course);
+    },
   };
 }

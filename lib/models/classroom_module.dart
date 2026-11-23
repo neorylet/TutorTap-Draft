@@ -9,6 +9,8 @@ class ClassroomModule {
     required this.fileUrl,
     required this.fileType,
     required this.createdAt,
+    this.courseId,
+    this.orderIndex = 0,
   });
 
   factory ClassroomModule.fromMap(Map<String, dynamic> map) {
@@ -20,6 +22,8 @@ class ClassroomModule {
       fileUrl: stringFrom(map['fileUrl']),
       fileType: stringFrom(map['fileType']),
       createdAt: dateTimeFromFirestore(map['createdAt']) ?? DateTime.now(),
+      courseId: map['courseId'] as String?,
+      orderIndex: intFrom(map['orderIndex'], 0),
     );
   }
 
@@ -30,6 +34,8 @@ class ClassroomModule {
   final String fileUrl;
   final String fileType;
   final DateTime createdAt;
+  final String? courseId;
+  final int orderIndex;
 
   Map<String, dynamic> toMap() => <String, dynamic>{
     'id': id,
@@ -39,6 +45,8 @@ class ClassroomModule {
     'fileUrl': fileUrl,
     'fileType': fileType,
     'createdAt': dateTimeToFirestore(createdAt),
+    'courseId': courseId,
+    'orderIndex': orderIndex,
   };
 
   ClassroomModule copyWith({
@@ -49,6 +57,8 @@ class ClassroomModule {
     String? fileUrl,
     String? fileType,
     DateTime? createdAt,
+    Object? courseId = kUnset,
+    int? orderIndex,
   }) {
     return ClassroomModule(
       id: id ?? this.id,
@@ -58,6 +68,8 @@ class ClassroomModule {
       fileUrl: fileUrl ?? this.fileUrl,
       fileType: fileType ?? this.fileType,
       createdAt: createdAt ?? this.createdAt,
+      courseId: courseId == kUnset ? this.courseId : courseId as String?,
+      orderIndex: orderIndex ?? this.orderIndex,
     );
   }
 }
