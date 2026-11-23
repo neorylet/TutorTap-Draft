@@ -322,6 +322,19 @@ class ClassroomProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> updateModule(ClassroomModule module) async {
+    try {
+      await _firestoreService.updateModule(module.id, module.toMap());
+      _error = null;
+      _notify();
+      return true;
+    } catch (error) {
+      _error = error.toString();
+      _notify();
+      return false;
+    }
+  }
+
   Future<bool> deleteExam({required String examId}) async {
     try {
       await _firestoreService.deleteExam(examId);

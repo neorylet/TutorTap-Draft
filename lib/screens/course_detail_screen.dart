@@ -14,6 +14,8 @@ import '../providers/classroom_provider.dart';
 import '../services/cloudinary_service.dart';
 import '../widgets/confirm_dialog.dart';
 import 'create_exam_screen.dart';
+import 'exam_preview_screen.dart';
+import 'module_preview_screen.dart';
 import 'screen_scaffold.dart';
 
 class CourseDetailScreen extends StatefulWidget {
@@ -76,23 +78,30 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: InkWell(
-                    onTap: hasFile
-                        ? () async {
-                            final Uri uri = Uri.parse(module.fileUrl);
-                            if (await canLaunchUrl(uri)) {
-                              await launchUrl(
-                                uri,
-                                mode: LaunchMode.externalApplication,
-                              );
-                            }
-                          }
-                        : null,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => ModulePreviewScreen(
+                          module: module,
+                          tutorId: tutorId,
+                        ),
+                      ),
+                    ),
                     borderRadius: BorderRadius.circular(16),
                     child: SectionCard(
                       child: Row(
                         children: <Widget>[
                           if (attachedExam != null)
-                            const Icon(Icons.quiz)
+                            InkWell(
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => ExamPreviewScreen(
+                                    exam: attachedExam,
+                                    tutorId: tutorId,
+                                  ),
+                                ),
+                              ),
+                              child: const Icon(Icons.quiz),
+                            )
                           else if (hasFile)
                             Icon(fileIcon)
                           else

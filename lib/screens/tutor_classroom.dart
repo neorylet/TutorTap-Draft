@@ -16,7 +16,9 @@ import '../widgets/labeled_fields_dialog.dart';
 import '../widgets/segmented_control.dart';
 import '../widgets/status_badge.dart';
 import 'create_assignment_screen.dart';
+import 'assignment_preview_screen.dart';
 import 'create_exam_screen.dart';
+import 'exam_preview_screen.dart';
 import 'screen_scaffold.dart';
 
 class TutorClassroomScreen extends StatefulWidget {
@@ -24,6 +26,222 @@ class TutorClassroomScreen extends StatefulWidget {
 
   @override
   State<TutorClassroomScreen> createState() => _TutorClassroomScreenState();
+}
+
+class _ExamListTile extends StatelessWidget {
+  const _ExamListTile({
+    required this.exam,
+    required this.onTap,
+    required this.onAttach,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final Exam exam;
+  final VoidCallback onTap;
+  final VoidCallback onAttach;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SectionCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                const Icon(Icons.quiz_outlined),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '${exam.title} · ${exam.questions.length} questions',
+                  ),
+                ),
+                if (exam.moduleId == null)
+                  TextButton(onPressed: onAttach, child: const Text('Attach')),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (String value) async {
+                    if (value == 'edit') {
+                      onEdit();
+                    } else if (value == 'delete') {
+                      onDelete();
+                    }
+                  },
+                  itemBuilder: (context) => <PopupMenuEntry<String>>[
+                    const PopupMenuItem<String>(
+                      value: 'edit',
+                      child: Row(
+                        children: <Widget>[
+                          Icon(Icons.edit_outlined),
+                          SizedBox(width: 8),
+                          Text('Edit'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'delete',
+                      child: Row(
+                        children: <Widget>[
+                          Icon(Icons.delete_outline),
+                          SizedBox(width: 8),
+                          Text('Delete'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AssignmentListTile extends StatelessWidget {
+  const _AssignmentListTile({
+    required this.assignment,
+    required this.onTap,
+    required this.onOpenAttachment,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final Assignment assignment;
+  final VoidCallback onTap;
+  final VoidCallback onOpenAttachment;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final String? attachmentUrl = assignment.attachmentUrl;
+    final IconData attachmentIcon = assignment.attachmentType == 'pdf'
+        ? Icons.picture_as_pdf
+        : Icons.slideshow;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: SectionCard(
+          child: Row(
+            children: <Widget>[
+              const Icon(Icons.assignment_outlined),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(assignment.title),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Due ${DateFormat('d MMM, h:mm a').format(assignment.dueDate)}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              if (attachmentUrl != null)
+                IconButton(
+                  icon: Icon(attachmentIcon),
+                  tooltip: 'Open attachment',
+                  onPressed: onOpenAttachment,
+                ),
+              StatusBadge.fromStatus(assignment.status.value),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert),
+                onSelected: (String value) async {
+                  if (value == 'edit') {
+                    onEdit();
+                  } else if (value == 'delete') {
+                    onDelete();
+                  }
+                },
+                itemBuilder: (context) => <PopupMenuEntry<String>>[
+                  const PopupMenuItem<String>(
+                    value: 'edit',
+                    child: Row(
+                      children: <Widget>[
+                        Icon(Icons.edit_outlined),
+                        SizedBox(width: 8),
+                        Text('Edit'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'delete',
+                    child: Row(
+                      children: <Widget>[
+                        Icon(Icons.delete_outline),
+                        SizedBox(width: 8),
+                        Text('Delete'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CourseListTile extends StatelessWidget {
+  const _CourseListTile({
+    required this.course,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  final Course course;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onDelete,
+        borderRadius: BorderRadius.circular(16),
+        child: SectionCard(
+          child: Row(
+            children: <Widget>[
+              const Icon(Icons.book_outlined),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      course.title,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      course.description,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
@@ -93,49 +311,16 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
                         itemCount: courses.length,
                         itemBuilder: (BuildContext context, int index) {
                           final Course course = courses[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: InkWell(
-                              onTap: () => Navigator.of(context).pushNamed(
-                                AppRoutes.courseDetail,
-                                arguments: course,
-                              ),
-                              onLongPress: () => _showDeleteCourseDialog(
-                                context,
-                                course.id,
-                                course.title,
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                              child: SectionCard(
-                                child: Row(
-                                  children: <Widget>[
-                                    const Icon(Icons.book_outlined),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: <Widget>[
-                                          Text(
-                                            course.title,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .titleMedium,
-                                          ),
-                                          const SizedBox(height: 3),
-                                          Text(
-                                            course.description,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const Icon(Icons.chevron_right),
-                                  ],
-                                ),
-                              ),
+                          return _CourseListTile(
+                            course: course,
+                            onTap: () => Navigator.of(context).pushNamed(
+                              AppRoutes.courseDetail,
+                              arguments: course,
+                            ),
+                            onDelete: () => _showDeleteCourseDialog(
+                              context,
+                              course.id,
+                              course.title,
                             ),
                           );
                         },
@@ -147,99 +332,29 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
                         itemCount: assignments.length,
                         itemBuilder: (BuildContext context, int index) {
                           final Assignment assignment = assignments[index];
-                          final String? attachmentUrl =
-                              assignment.attachmentUrl;
-                          final IconData attachmentIcon =
-                              assignment.attachmentType == 'pdf'
-                              ? Icons.picture_as_pdf
-                              : Icons.slideshow;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: InkWell(
-                              onTap: () => Navigator.of(context).pushNamed(
-                                AppRoutes.grading,
-                                arguments: assignment,
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                              child: SectionCard(
-                                child: Row(
-                                  children: <Widget>[
-                                    const Icon(Icons.assignment_outlined),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: <Widget>[
-                                          Text(assignment.title),
-                                          const SizedBox(height: 3),
-                                          Text(
-                                            'Due ${DateFormat('d MMM, h:mm a').format(assignment.dueDate)}',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (attachmentUrl != null)
-                                      IconButton(
-                                        icon: Icon(attachmentIcon),
-                                        tooltip: 'Open attachment',
-                                        onPressed: () =>
-                                            _openAttachment(attachmentUrl),
-                                      ),
-                                    StatusBadge.fromStatus(
-                                      assignment.status.value,
-                                    ),
-                                    PopupMenuButton<String>(
-                                      icon: const Icon(Icons.more_vert),
-                                      onSelected: (String value) async {
-                                        if (value == 'edit') {
-                                          Navigator.of(context).push(
-                                            MaterialPageRoute<void>(
-                                              builder: (_) =>
-                                                  CreateAssignmentScreen(
-                                                    tutorId: user?.uid ?? '',
-                                                    existingAssignment:
-                                                        assignment,
-                                                  ),
-                                            ),
-                                          );
-                                        } else if (value == 'delete') {
-                                          await _showDeleteAssignmentDialog(
-                                            context,
-                                            assignment,
-                                          );
-                                        }
-                                      },
-                                      itemBuilder: (context) =>
-                                          <PopupMenuEntry<String>>[
-                                            const PopupMenuItem<String>(
-                                              value: 'edit',
-                                              child: Row(
-                                                children: <Widget>[
-                                                  Icon(Icons.edit_outlined),
-                                                  SizedBox(width: 8),
-                                                  Text('Edit'),
-                                                ],
-                                              ),
-                                            ),
-                                            const PopupMenuItem<String>(
-                                              value: 'delete',
-                                              child: Row(
-                                                children: <Widget>[
-                                                  Icon(Icons.delete_outline),
-                                                  SizedBox(width: 8),
-                                                  Text('Delete'),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                    ),
-                                  ],
+                          return _AssignmentListTile(
+                            assignment: assignment,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => AssignmentPreviewScreen(
+                                  assignment: assignment,
+                                  tutorId: user?.uid ?? '',
                                 ),
                               ),
+                            ),
+                            onOpenAttachment: () =>
+                                _openAttachment(assignment.attachmentUrl!),
+                            onEdit: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => CreateAssignmentScreen(
+                                  tutorId: user?.uid ?? '',
+                                  existingAssignment: assignment,
+                                ),
+                              ),
+                            ),
+                            onDelete: () => _showDeleteAssignmentDialog(
+                              context,
+                              assignment,
                             ),
                           );
                         },
@@ -251,115 +366,29 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
                         itemCount: exams.length,
                         itemBuilder: (BuildContext context, int index) {
                           final Exam exam = exams[index];
-                          final List<ClassroomModule> modules = context
-                              .select<ClassroomProvider, List<ClassroomModule>>(
-                                (ClassroomProvider p) => p.modules,
-                              );
-                          final ClassroomModule? attachedModule =
-                              exam.moduleId != null
-                              ? modules
-                                    .where((m) => m.id == exam.moduleId)
-                                    .firstOrNull
-                              : null;
-
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: SectionCard(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  Row(
-                                    children: <Widget>[
-                                      const Icon(Icons.quiz_outlined),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          '${exam.title} · ${exam.questions.length} questions',
-                                        ),
-                                      ),
-                                      if (exam.moduleId == null)
-                                        TextButton(
-                                          onPressed: () =>
-                                              _showAttachExamDialog(
-                                                context,
-                                                exam.id,
-                                              ),
-                                          child: const Text('Attach'),
-                                        ),
-                                      PopupMenuButton<String>(
-                                        icon: const Icon(Icons.more_vert),
-                                        onSelected: (String value) async {
-                                          if (value == 'edit') {
-                                            Navigator.of(context).push(
-                                              MaterialPageRoute<void>(
-                                                builder: (_) =>
-                                                    CreateExamScreen(
-                                                      tutorId: user?.uid ?? '',
-                                                      existingExam: exam,
-                                                      moduleId: exam.moduleId,
-                                                    ),
-                                              ),
-                                            );
-                                          } else if (value == 'delete') {
-                                            await _showDeleteExamDialog(
-                                              context,
-                                              exam,
-                                            );
-                                          }
-                                        },
-                                        itemBuilder: (context) =>
-                                            <PopupMenuEntry<String>>[
-                                              const PopupMenuItem<String>(
-                                                value: 'edit',
-                                                child: Row(
-                                                  children: <Widget>[
-                                                    Icon(Icons.edit_outlined),
-                                                    SizedBox(width: 8),
-                                                    Text('Edit'),
-                                                  ],
-                                                ),
-                                              ),
-                                              const PopupMenuItem<String>(
-                                                value: 'delete',
-                                                child: Row(
-                                                  children: <Widget>[
-                                                    Icon(Icons.delete_outline),
-                                                    SizedBox(width: 8),
-                                                    Text('Delete'),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                      ),
-                                    ],
-                                  ),
-                                  if (attachedModule != null)
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                        left: 36,
-                                        top: 4,
-                                      ),
-                                      child: Text(
-                                        'Attached to: ${attachedModule.title}',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall,
-                                      ),
-                                    )
-                                  else
-                                    const Padding(
-                                      padding: EdgeInsets.only(
-                                        left: 36,
-                                        top: 4,
-                                      ),
-                                      child: Text(
-                                        'Not attached',
-                                        style: TextStyle(color: Colors.grey),
-                                      ),
-                                    ),
-                                ],
+                          return _ExamListTile(
+                            exam: exam,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => ExamPreviewScreen(
+                                  exam: exam,
+                                  tutorId: user?.uid ?? '',
+                                ),
                               ),
                             ),
+                            onAttach: () =>
+                                _showAttachExamDialog(context, exam.id),
+                            onEdit: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => CreateExamScreen(
+                                  tutorId: user?.uid ?? '',
+                                  existingExam: exam,
+                                  moduleId: exam.moduleId,
+                                ),
+                              ),
+                            ),
+                            onDelete: () =>
+                                _showDeleteExamDialog(context, exam),
                           );
                         },
                       ),

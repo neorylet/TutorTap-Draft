@@ -191,6 +191,10 @@ class FirestoreService {
     await modules.doc(moduleId).delete();
   }
 
+  Future<void> updateModule(String moduleId, Map<String, dynamic> data) async {
+    await modules.doc(moduleId).update(data);
+  }
+
   Future<void> deleteCourse(String courseId) async {
     final WriteBatch batch = _firestore.batch();
 
