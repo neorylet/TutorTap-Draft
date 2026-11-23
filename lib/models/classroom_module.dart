@@ -32,6 +32,7 @@ class ClassroomModule {
   final String title;
   final String description;
   final String fileUrl;
+  // Accepted values: 'pdf', 'ppt', 'pptx'
   final String fileType;
   final DateTime createdAt;
   final String? courseId;

@@ -8,6 +8,7 @@ import '../models/exam.dart';
 import '../providers/auth_provider.dart';
 import '../providers/classroom_provider.dart';
 import '../routing/app_routes.dart';
+import '../widgets/confirm_dialog.dart';
 import '../widgets/segmented_control.dart';
 import '../widgets/status_badge.dart';
 import 'screen_scaffold.dart';
@@ -94,6 +95,11 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
                               onTap: () => Navigator.of(context).pushNamed(
                                 AppRoutes.courseDetail,
                                 arguments: course,
+                              ),
+                              onLongPress: () => _showDeleteCourseDialog(
+                                context,
+                                course.id,
+                                course.title,
                               ),
                               borderRadius: BorderRadius.circular(16),
                               child: SectionCard(
@@ -269,5 +275,46 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
       controller.dispose();
     }
     return result;
+  }
+
+  Future<void> _showDeleteCourseDialog(
+    BuildContext context,
+    String courseId,
+    String courseTitle,
+  ) async {
+    final ClassroomProvider classroomProvider = context
+        .read<ClassroomProvider>();
+    // ignore: use_build_context_synchronously
+    final ScaffoldMessengerState scaffoldMessenger = ScaffoldMessenger.of(
+      context,
+    );
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => ConfirmDialog(
+        title: 'Delete Course',
+        message: 'Delete "$courseTitle"? This action cannot be undone.',
+        confirmLabel: 'Delete',
+        requiredText: courseTitle,
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    final bool success = await classroomProvider.deleteCourse(
+      courseId: courseId,
+    );
+
+    if (!mounted) return;
+
+    if (!success) {
+      final String? error = classroomProvider.error;
+      if (error != null) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text('Failed to delete course: $error')),
+        );
+      }
+    }
   }
 }

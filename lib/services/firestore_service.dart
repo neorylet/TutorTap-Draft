@@ -187,6 +187,26 @@ class FirestoreService {
     return course;
   }
 
+  Future<void> deleteModule(String moduleId) async {
+    await modules.doc(moduleId).delete();
+  }
+
+  Future<void> deleteCourse(String courseId) async {
+    final WriteBatch batch = _firestore.batch();
+
+    final QuerySnapshot<Map<String, dynamic>> modulesSnapshot = await modules
+        .where('courseId', isEqualTo: courseId)
+        .get();
+    for (final QueryDocumentSnapshot<Map<String, dynamic>> doc
+        in modulesSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+
+    batch.delete(courses.doc(courseId));
+
+    await batch.commit();
+  }
+
   Stream<List<Exam>> watchExams(String tutorId) {
     return exams
         .where('tutorId', isEqualTo: tutorId)

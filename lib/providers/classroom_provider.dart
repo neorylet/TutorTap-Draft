@@ -224,6 +224,8 @@ class ClassroomProvider extends ChangeNotifier {
     required String courseId,
     required String title,
     required String description,
+    String fileUrl = '',
+    String fileType = '',
     required int orderIndex,
   }) async {
     try {
@@ -234,8 +236,8 @@ class ClassroomProvider extends ChangeNotifier {
           tutorId: tutorId,
           title: title,
           description: description,
-          fileUrl: '',
-          fileType: '',
+          fileUrl: fileUrl,
+          fileType: fileType,
           createdAt: now,
           courseId: courseId,
           orderIndex: orderIndex,
@@ -246,6 +248,32 @@ class ClassroomProvider extends ChangeNotifier {
     } catch (error) {
       _error = error.toString();
       _notify();
+    }
+  }
+
+  Future<bool> deleteCourse({required String courseId}) async {
+    try {
+      await _firestoreService.deleteCourse(courseId);
+      _error = null;
+      _notify();
+      return true;
+    } catch (error) {
+      _error = error.toString();
+      _notify();
+      return false;
+    }
+  }
+
+  Future<bool> deleteModule({required String moduleId}) async {
+    try {
+      await _firestoreService.deleteModule(moduleId);
+      _error = null;
+      _notify();
+      return true;
+    } catch (error) {
+      _error = error.toString();
+      _notify();
+      return false;
     }
   }
 

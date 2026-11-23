@@ -1,10 +1,10 @@
 abstract final class CloudinaryConfig {
   static const String cloudName = 'YOUR_CLOUD_NAME';
   static const String unsignedUploadPreset = 'tutortap_unsigned';
+  static const int maxFileSizeBytes = 20 * 1024 * 1024; // 20MB
 
-  static Uri uploadUri() => Uri.parse(
-    'https://api.cloudinary.com/v1_1/$cloudName/auto/upload',
-  );
+  static Uri uploadUri() =>
+      Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/auto/upload');
 
   static String avatarFolder(String uid) => 'tutortap/avatars/$uid';
 
@@ -15,10 +15,8 @@ abstract final class CloudinaryConfig {
   static String submissionFolder(String assignmentId) =>
       'tutortap/submissions/$assignmentId';
 
-  static String avatarUrl(String secureUrl) => _transform(
-    secureUrl,
-    'w_200,h_200,c_fill,g_face,q_auto,f_auto',
-  );
+  static String avatarUrl(String secureUrl) =>
+      _transform(secureUrl, 'w_200,h_200,c_fill,g_face,q_auto,f_auto');
 
   static String thumbnailUrl(String secureUrl) =>
       _transform(secureUrl, 'w_400,q_auto,f_auto');
@@ -27,9 +25,6 @@ abstract final class CloudinaryConfig {
     if (secureUrl.isEmpty || !secureUrl.contains('/upload/')) {
       return secureUrl;
     }
-    return secureUrl.replaceFirst(
-      '/upload/',
-      '/upload/$transformation/',
-    );
+    return secureUrl.replaceFirst('/upload/', '/upload/$transformation/');
   }
 }
