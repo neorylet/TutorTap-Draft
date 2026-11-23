@@ -44,6 +44,7 @@ class Exam {
     required this.questions,
     required this.attempts,
     this.dueDate,
+    this.moduleId,
   });
 
   factory Exam.fromMap(Map<String, dynamic> map) {
@@ -53,6 +54,7 @@ class Exam {
       title: stringFrom(map['title']),
       timeLimitMin: intFrom(map['timeLimitMin'], 15),
       dueDate: dateTimeFromFirestore(map['dueDate']),
+      moduleId: map['moduleId'] as String?,
       questions: mapListFrom(map['questions'])
           .map((Map<String, dynamic> item) => Question.fromMap(item))
           .toList(growable: true),
@@ -67,6 +69,7 @@ class Exam {
   final String title;
   final int timeLimitMin;
   final DateTime? dueDate;
+  final String? moduleId;
   final List<Question> questions;
   final List<ExamAttempt> attempts;
 
@@ -79,7 +82,10 @@ class Exam {
     'title': title,
     'timeLimitMin': timeLimitMin,
     'dueDate': dateTimeToFirestore(dueDate),
-    'questions': questions.map((Question q) => q.toMap()).toList(growable: false),
+    'moduleId': moduleId,
+    'questions': questions
+        .map((Question q) => q.toMap())
+        .toList(growable: false),
     'attempts': attempts
         .map((ExamAttempt attempt) => attempt.toMap())
         .toList(growable: false),
@@ -91,6 +97,7 @@ class Exam {
     String? title,
     int? timeLimitMin,
     Object? dueDate = kUnset,
+    String? moduleId,
     List<Question>? questions,
     List<ExamAttempt>? attempts,
   }) {
@@ -102,6 +109,7 @@ class Exam {
       dueDate: dueDate == kUnset
           ? this.dueDate
           : dateTimeFromFirestore(dueDate),
+      moduleId: moduleId ?? this.moduleId,
       questions: questions ?? this.questions,
       attempts: attempts ?? this.attempts,
     );

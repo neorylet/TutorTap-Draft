@@ -150,6 +150,31 @@ service cloud.firestore {
         resource.data.tutorId == request.auth.uid;
     }
 
+    // -------- ASSIGNMENTS --------
+    // Unchanged from current repo rules (already field-whitelisted).
+    match /assignments/{assignmentId} {
+      allow read: if isSignedIn() && (
+        resource.data.tutorId == request.auth.uid ||
+        resource.data.studentId == request.auth.uid
+      );
+      allow create: if isSignedIn() &&
+        request.resource.data.tutorId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        (
+          resource.data.tutorId == request.auth.uid &&
+          affectedKeys().hasOnly(['grade', 'feedback', 'status'])
+        ) ||
+        (
+          resource.data.studentId == request.auth.uid &&
+          affectedKeys().hasOnly([
+            'submissionUrl', 'submissionText', 'submittedAt', 'status'
+          ])
+        )
+      );
+      allow delete: if isSignedIn() &&
+        resource.data.tutorId == request.auth.uid;
+    }
+
     // -------- FLASHCARD DECKS --------
     // Unchanged from current repo rules.
     match /flashcard_decks/{deckId} {

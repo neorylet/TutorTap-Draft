@@ -207,6 +207,16 @@ class FirestoreService {
     await batch.commit();
   }
 
+  Future<void> deleteExam(String examId) async {
+    // TODO: Clean up Cloudinary files if exam has attachments (future feature)
+    await exams.doc(examId).delete();
+  }
+
+  Future<void> deleteAssignment(String assignmentId) async {
+    // TODO: Clean up Cloudinary files if assignment has attachments
+    await assignments.doc(assignmentId).delete();
+  }
+
   Stream<List<Exam>> watchExams(String tutorId) {
     return exams
         .where('tutorId', isEqualTo: tutorId)
@@ -310,6 +320,10 @@ class FirestoreService {
     Map<String, dynamic> changes,
   ) {
     return assignments.doc(assignmentId).update(changes);
+  }
+
+  Future<void> updateExam(String examId, Map<String, dynamic> changes) {
+    return exams.doc(examId).update(changes);
   }
 
   Future<void> updateDeck(String deckId, FlashcardDeck deck) {

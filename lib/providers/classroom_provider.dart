@@ -10,7 +10,13 @@ import '../models/exam.dart';
 import '../services/cloudinary_service.dart';
 import '../services/firestore_service.dart';
 
-enum UploadPurpose { avatar, credential, module, assignmentAttachment, submission }
+enum UploadPurpose {
+  avatar,
+  credential,
+  module,
+  assignmentAttachment,
+  submission,
+}
 
 class PendingUpload {
   const PendingUpload({
@@ -316,6 +322,32 @@ class ClassroomProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> deleteExam({required String examId}) async {
+    try {
+      await _firestoreService.deleteExam(examId);
+      _error = null;
+      _notify();
+      return true;
+    } catch (error) {
+      _error = error.toString();
+      _notify();
+      return false;
+    }
+  }
+
+  Future<bool> deleteAssignment({required String assignmentId}) async {
+    try {
+      await _firestoreService.deleteAssignment(assignmentId);
+      _error = null;
+      _notify();
+      return true;
+    } catch (error) {
+      _error = error.toString();
+      _notify();
+      return false;
+    }
+  }
+
   Future<void> createAssignment({
     required String tutorId,
     required String studentId,
@@ -367,7 +399,80 @@ class ClassroomProvider extends ChangeNotifier {
     });
   }
 
-  Future<void> createExam(Exam exam) => _firestoreService.addExam(exam);
+  Future<bool> updateAssignment(Assignment assignment) async {
+    try {
+      await _firestoreService.updateAssignment(
+        assignment.id,
+        assignment.toMap(),
+      );
+      _error = null;
+      _notify();
+      return true;
+    } catch (error) {
+      _error = error.toString();
+      _notify();
+      return false;
+    }
+  }
+
+  Future<bool> createExam(Exam exam) async {
+    try {
+      await _firestoreService.addExam(exam);
+      _error = null;
+      _notify();
+      return true;
+    } catch (error) {
+      _error = error.toString();
+      _notify();
+      return false;
+    }
+  }
+
+  Future<bool> updateExam(Exam exam) async {
+    try {
+      await _firestoreService.updateExam(exam.id, exam.toMap());
+      _error = null;
+      _notify();
+      return true;
+    } catch (error) {
+      _error = error.toString();
+      _notify();
+      return false;
+    }
+  }
+
+  Future<bool> attachExamToModule({
+    required String examId,
+    required String moduleId,
+  }) async {
+    try {
+      await _firestoreService.updateExam(examId, <String, dynamic>{
+        'moduleId': moduleId,
+      });
+      _error = null;
+      _notify();
+      return true;
+    } catch (error) {
+      _error = error.toString();
+      _notify();
+      return false;
+    }
+  }
+
+  Future<bool> detachExam({required String examId}) async {
+    try {
+      await _firestoreService.updateExam(examId, <String, dynamic>{
+        'moduleId': null,
+      });
+      _error = null;
+      _notify();
+      return true;
+    } catch (error) {
+      _error = error.toString();
+      _notify();
+      return false;
+    }
+  }
 
   void clearError() {
     if (_error == null) return;

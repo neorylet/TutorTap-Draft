@@ -6,15 +6,21 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../core/constants/cloudinary_config.dart';
+import '../models/assignment.dart';
 import '../providers/classroom_provider.dart';
 import '../services/cloudinary_service.dart';
 import '../widgets/app_form_field.dart';
 import 'screen_scaffold.dart';
 
 class CreateAssignmentScreen extends StatefulWidget {
-  const CreateAssignmentScreen({super.key, required this.tutorId});
+  const CreateAssignmentScreen({
+    super.key,
+    required this.tutorId,
+    this.existingAssignment,
+  });
 
   final String tutorId;
+  final Assignment? existingAssignment;
 
   @override
   State<CreateAssignmentScreen> createState() => _CreateAssignmentScreenState();
@@ -22,8 +28,7 @@ class CreateAssignmentScreen extends StatefulWidget {
 
 class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
   final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _instructionsController =
-      TextEditingController();
+  final TextEditingController _instructionsController = TextEditingController();
   DateTime _dueDate = DateTime.now().add(const Duration(days: 7));
   String? _pickedFilePath;
   String? _pickedFileName;
@@ -35,6 +40,22 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
     _titleController.dispose();
     _instructionsController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingAssignment != null) {
+      _titleController.text = widget.existingAssignment!.title;
+      _instructionsController.text = widget.existingAssignment!.instructions;
+      _dueDate = widget.existingAssignment!.dueDate;
+      if (widget.existingAssignment!.attachmentUrl != null) {
+        _pickedFilePath = null;
+        _pickedFileName = widget.existingAssignment!.attachmentType != null
+            ? 'existing.${widget.existingAssignment!.attachmentType}'
+            : 'existing file';
+      }
+    }
   }
 
   Future<void> _pickDueDate() async {
@@ -140,7 +161,9 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
       attachmentUrl = uploadResult.secureUrl;
     }
 
-    await _saveAssignment(
+    await (widget.existingAssignment != null
+        ? _updateAssignment
+        : _saveAssignment)(
       classroom: classroom,
       title: title,
       attachmentUrl: attachmentUrl,
@@ -177,6 +200,34 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
     Navigator.of(context).pop();
   }
 
+  Future<void> _updateAssignment({
+    required ClassroomProvider classroom,
+    required String title,
+    String? attachmentUrl,
+    String? attachmentType,
+  }) async {
+    setState(() => _isCreating = true);
+    try {
+      final Assignment updated = widget.existingAssignment!.copyWith(
+        title: title,
+        instructions: _instructionsController.text.trim(),
+        dueDate: _dueDate,
+        attachmentUrl: attachmentUrl,
+        attachmentType: attachmentType,
+      );
+      await classroom.updateAssignment(updated);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isCreating = false;
+        _errorMessage = 'Failed to update assignment: $error';
+      });
+      return;
+    }
+    if (!mounted) return;
+    Navigator.of(context).pop();
+  }
+
   Future<void> _retryUpload() async {
     final ClassroomProvider classroom = context.read<ClassroomProvider>();
     final CloudinaryUploadResult? result = await classroom.retryPendingUpload();
@@ -187,7 +238,9 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
     }
 
     setState(() => _errorMessage = null);
-    await _saveAssignment(
+    await (widget.existingAssignment != null
+        ? _updateAssignment
+        : _saveAssignment)(
       classroom: classroom,
       title: _titleController.text.trim(),
       attachmentUrl: result.secureUrl,
@@ -202,15 +255,19 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
     );
     final PendingUpload? pendingUpload = context
         .select<ClassroomProvider, PendingUpload?>(
-      (ClassroomProvider provider) => provider.pendingUpload,
-    );
+          (ClassroomProvider provider) => provider.pendingUpload,
+        );
     final bool hasPendingError = pendingUpload?.error != null;
     final bool isBusy = isUploading || _isCreating;
     final String? displayedError = _errorMessage ?? pendingUpload?.error;
 
     return ScreenScaffold(
-      title: 'New assignment',
-      subtitle: 'Create a task for all students.',
+      title: widget.existingAssignment != null
+          ? 'Edit assignment'
+          : 'New assignment',
+      subtitle: widget.existingAssignment != null
+          ? 'Edit this task for all students.'
+          : 'Create a task for all students.',
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -231,6 +288,7 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
                     label: 'Instructions',
                     hint: 'Explain what students need to do',
                     maxLines: 6,
+                    onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: 14),
                   SectionCard(
@@ -326,7 +384,11 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
                       ),
                     ),
                   )
-                : const Text('Create assignment'),
+                : Text(
+                    widget.existingAssignment != null
+                        ? 'Update assignment'
+                        : 'Create assignment',
+                  ),
           ),
         ],
       ),
