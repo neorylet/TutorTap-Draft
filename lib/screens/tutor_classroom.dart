@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/app_user.dart';
 import '../models/assignment.dart';
@@ -12,6 +14,7 @@ import '../widgets/confirm_dialog.dart';
 import '../widgets/labeled_fields_dialog.dart';
 import '../widgets/segmented_control.dart';
 import '../widgets/status_badge.dart';
+import 'create_assignment_screen.dart';
 import 'screen_scaffold.dart';
 
 class TutorClassroomScreen extends StatefulWidget {
@@ -144,6 +147,12 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
                         itemCount: assignments.length,
                         itemBuilder: (BuildContext context, int index) {
                           final Assignment assignment = assignments[index];
+                          final String? attachmentUrl =
+                              assignment.attachmentUrl;
+                          final IconData attachmentIcon =
+                              assignment.attachmentType == 'pdf'
+                              ? Icons.picture_as_pdf
+                              : Icons.slideshow;
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 8),
                             child: InkWell(
@@ -157,7 +166,29 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
                                   children: <Widget>[
                                     const Icon(Icons.assignment_outlined),
                                     const SizedBox(width: 12),
-                                    Expanded(child: Text(assignment.title)),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: <Widget>[
+                                          Text(assignment.title),
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            'Due ${DateFormat('d MMM, h:mm a').format(assignment.dueDate)}',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (attachmentUrl != null)
+                                      IconButton(
+                                        icon: Icon(attachmentIcon),
+                                        tooltip: 'Open attachment',
+                                        onPressed: () =>
+                                            _openAttachment(attachmentUrl),
+                                      ),
                                     StatusBadge.fromStatus(
                                       assignment.status.value,
                                     ),
@@ -202,46 +233,37 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
 
   Future<void> _add(String? tutorId) async {
     if (tutorId == null) return;
-    final ClassroomProvider classroom = context.read<ClassroomProvider>();
-    if (_tab == 'courses') {
-      final Map<String, String>? values = await _showFields(
-        context,
-        const <String>['Title', 'Description', 'Subject'],
-      );
-      if (values == null) return;
-      await classroom.createCourse(
-        tutorId: tutorId,
-        title: values['Title'] ?? '',
-        description: values['Description'] ?? '',
-        subject: values['Subject'] ?? '',
+
+    if (_tab == 'assignments') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => CreateAssignmentScreen(tutorId: tutorId),
+        ),
       );
       return;
     }
-    final Map<String, String>? values = await _showFields(
-      context,
-      const <String>['Title', 'Instructions'],
+
+    final Map<String, String>? values = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (_) => const LabeledFieldsDialog(
+        title: 'New course',
+        labels: <String>['Title', 'Description', 'Subject'],
+      ),
     );
-    if (values == null) return;
-    await classroom.createAssignment(
+    if (values == null || !mounted) return;
+    await context.read<ClassroomProvider>().createCourse(
       tutorId: tutorId,
-      studentId: 'all-students',
       title: values['Title'] ?? '',
-      instructions: values['Instructions'] ?? '',
-      dueDate: DateTime.now().add(const Duration(days: 7)),
+      description: values['Description'] ?? '',
+      subject: values['Subject'] ?? '',
     );
   }
 
-  Future<Map<String, String>?> _showFields(
-    BuildContext context,
-    List<String> labels,
-  ) {
-    return showDialog<Map<String, String>>(
-      context: context,
-      builder: (_) => LabeledFieldsDialog(
-        title: _tab == 'courses' ? 'New course' : 'New assignment',
-        labels: labels,
-      ),
-    );
+  Future<void> _openAttachment(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Future<void> _showDeleteCourseDialog(

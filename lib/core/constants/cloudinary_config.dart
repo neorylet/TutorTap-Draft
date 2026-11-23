@@ -12,6 +12,9 @@ abstract final class CloudinaryConfig {
 
   static String moduleFolder(String tutorId) => 'tutortap/modules/$tutorId';
 
+  static String assignmentAttachmentFolder(String tutorId) =>
+      'tutortap/assignment-attachments/$tutorId';
+
   static String submissionFolder(String assignmentId) =>
       'tutortap/submissions/$assignmentId';
 

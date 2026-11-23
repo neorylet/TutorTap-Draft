@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/app_user.dart';
 import '../models/assignment.dart';
@@ -83,6 +84,17 @@ class _StudentClassroomScreenState extends State<StudentClassroomScreen> {
                               ],
                             ),
                           ),
+                          if (assignment.attachmentUrl != null)
+                            IconButton(
+                              icon: Icon(
+                                assignment.attachmentType == 'pdf'
+                                    ? Icons.picture_as_pdf
+                                    : Icons.slideshow,
+                              ),
+                              tooltip: 'Open attachment',
+                              onPressed: () =>
+                                  _openAttachment(assignment.attachmentUrl!),
+                            ),
                           StatusBadge.fromStatus(assignment.status.value),
                         ],
                       ),
@@ -92,5 +104,12 @@ class _StudentClassroomScreenState extends State<StudentClassroomScreen> {
               },
             ),
     );
+  }
+
+  Future<void> _openAttachment(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 }

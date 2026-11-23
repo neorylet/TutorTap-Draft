@@ -20,6 +20,8 @@ class Assignment {
     required this.dueDate,
     required this.maxScore,
     required this.status,
+    this.attachmentUrl,
+    this.attachmentType,
     this.submissionUrl,
     this.submissionText,
     this.submittedAt,
@@ -35,6 +37,8 @@ class Assignment {
       title: stringFrom(map['title']),
       instructions: stringFrom(map['instructions']),
       dueDate: dateTimeFromFirestore(map['dueDate']) ?? DateTime.now(),
+      attachmentUrl: map['attachmentUrl'] as String?,
+      attachmentType: map['attachmentType'] as String?,
       submissionUrl: map['submissionUrl'] as String?,
       submissionText: map['submissionText'] as String?,
       submittedAt: dateTimeFromFirestore(map['submittedAt']),
@@ -59,6 +63,8 @@ class Assignment {
   final String title;
   final String instructions;
   final DateTime dueDate;
+  final String? attachmentUrl;
+  final String? attachmentType;
   final String? submissionUrl;
   final String? submissionText;
   final DateTime? submittedAt;
@@ -74,6 +80,8 @@ class Assignment {
     'title': title,
     'instructions': instructions,
     'dueDate': dateTimeToFirestore(dueDate),
+    'attachmentUrl': attachmentUrl,
+    'attachmentType': attachmentType,
     'submissionUrl': submissionUrl,
     'submissionText': submissionText,
     'submittedAt': dateTimeToFirestore(submittedAt),
@@ -90,6 +98,8 @@ class Assignment {
     String? title,
     String? instructions,
     DateTime? dueDate,
+    Object? attachmentUrl = kUnset,
+    Object? attachmentType = kUnset,
     Object? submissionUrl = kUnset,
     Object? submissionText = kUnset,
     Object? submittedAt = kUnset,
@@ -105,6 +115,12 @@ class Assignment {
       title: title ?? this.title,
       instructions: instructions ?? this.instructions,
       dueDate: dueDate ?? this.dueDate,
+      attachmentUrl: attachmentUrl == kUnset
+          ? this.attachmentUrl
+          : attachmentUrl as String?,
+      attachmentType: attachmentType == kUnset
+          ? this.attachmentType
+          : attachmentType as String?,
       submissionUrl: submissionUrl == kUnset
           ? this.submissionUrl
           : submissionUrl as String?,

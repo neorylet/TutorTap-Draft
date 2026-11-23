@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/assignment.dart';
 import '../providers/classroom_provider.dart';
@@ -63,11 +65,26 @@ class _GradingScreenState extends State<GradingScreen> {
               children: <Widget>[
                 StatusBadge.fromStatus(assignment.status.value),
                 const Spacer(),
+                if (assignment.attachmentUrl != null)
+                  IconButton(
+                    icon: Icon(
+                      assignment.attachmentType == 'pdf'
+                          ? Icons.picture_as_pdf
+                          : Icons.slideshow,
+                    ),
+                    tooltip: 'Open attachment',
+                    onPressed: () => _openAttachment(assignment.attachmentUrl!),
+                  ),
                 Text(
                   'Max ${assignment.maxScore.toStringAsFixed(0)} pts',
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
               ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Due ${DateFormat('d MMM, h:mm a').format(assignment.dueDate)}',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
             SectionCard(
@@ -117,6 +134,13 @@ class _GradingScreenState extends State<GradingScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _openAttachment(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Future<void> _save(Assignment assignment) async {

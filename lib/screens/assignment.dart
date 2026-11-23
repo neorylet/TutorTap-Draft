@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/app_user.dart';
 import '../models/assignment.dart';
@@ -74,6 +75,26 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
+            if (assignment.attachmentUrl != null) ...<Widget>[
+              const SizedBox(height: 12),
+              SectionCard(
+                child: InkWell(
+                  onTap: () => _openAttachment(assignment.attachmentUrl!),
+                  child: Row(
+                    children: <Widget>[
+                      Icon(
+                        assignment.attachmentType == 'pdf'
+                            ? Icons.picture_as_pdf
+                            : Icons.slideshow,
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(child: Text('Assignment attachment')),
+                      const Icon(Icons.open_in_new, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             if (assignment.submissionText != null ||
                 assignment.submissionUrl != null) ...<Widget>[
               const SizedBox(height: 12),
@@ -150,6 +171,13 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _openAttachment(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Future<void> _pickAndUpload() async {

@@ -10,7 +10,7 @@ import '../models/exam.dart';
 import '../services/cloudinary_service.dart';
 import '../services/firestore_service.dart';
 
-enum UploadPurpose { avatar, credential, module, submission }
+enum UploadPurpose { avatar, credential, module, assignmentAttachment, submission }
 
 class PendingUpload {
   const PendingUpload({
@@ -160,6 +160,8 @@ class ClassroomProvider extends ChangeNotifier {
       UploadPurpose.avatar => CloudinaryConfig.avatarFolder(ownerId),
       UploadPurpose.credential => CloudinaryConfig.credentialFolder(ownerId),
       UploadPurpose.module => CloudinaryConfig.moduleFolder(ownerId),
+      UploadPurpose.assignmentAttachment =>
+        CloudinaryConfig.assignmentAttachmentFolder(ownerId),
       UploadPurpose.submission => CloudinaryConfig.submissionFolder(
         assignmentId ?? ownerId,
       ),
@@ -321,6 +323,8 @@ class ClassroomProvider extends ChangeNotifier {
     required String instructions,
     required DateTime dueDate,
     double maxScore = 10,
+    String? attachmentUrl,
+    String? attachmentType,
   }) async {
     await _firestoreService.addAssignment(
       Assignment(
@@ -332,6 +336,8 @@ class ClassroomProvider extends ChangeNotifier {
         dueDate: dueDate,
         maxScore: maxScore,
         status: AssignmentStatus.assigned,
+        attachmentUrl: attachmentUrl,
+        attachmentType: attachmentType,
       ),
     );
   }
