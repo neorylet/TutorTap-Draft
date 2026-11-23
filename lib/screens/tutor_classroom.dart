@@ -9,6 +9,7 @@ import '../providers/auth_provider.dart';
 import '../providers/classroom_provider.dart';
 import '../routing/app_routes.dart';
 import '../widgets/confirm_dialog.dart';
+import '../widgets/labeled_fields_dialog.dart';
 import '../widgets/segmented_control.dart';
 import '../widgets/status_badge.dart';
 import 'screen_scaffold.dart';
@@ -233,48 +234,14 @@ class _TutorClassroomScreenState extends State<TutorClassroomScreen> {
   Future<Map<String, String>?> _showFields(
     BuildContext context,
     List<String> labels,
-  ) async {
-    final List<TextEditingController> controllers = labels
-        .map((String label) => TextEditingController())
-        .toList(growable: false);
-    final Map<String, String>? result = await showDialog<Map<String, String>>(
+  ) {
+    return showDialog<Map<String, String>>(
       context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text(_tab == 'courses' ? 'New course' : 'New assignment'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              for (int index = 0; index < labels.length; index++)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: TextField(
-                    controller: controllers[index],
-                    decoration: InputDecoration(labelText: labels[index]),
-                  ),
-                ),
-            ],
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(<String, String>{
-                for (int index = 0; index < labels.length; index++)
-                  labels[index]: controllers[index].text.trim(),
-              }),
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
+      builder: (_) => LabeledFieldsDialog(
+        title: _tab == 'courses' ? 'New course' : 'New assignment',
+        labels: labels,
+      ),
     );
-    for (final TextEditingController controller in controllers) {
-      controller.dispose();
-    }
-    return result;
   }
 
   Future<void> _showDeleteCourseDialog(

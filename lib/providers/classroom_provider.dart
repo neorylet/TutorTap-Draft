@@ -74,42 +74,79 @@ class ClassroomProvider extends ChangeNotifier {
   void watchTutorClassroom(String tutorId) {
     _cancelSubscriptions();
     watchCoursesForTutor(tutorId);
-    _modulesSubscription = _firestoreService.watchModules(tutorId).listen((
-      items,
-    ) {
-      _modules = items;
-      _notify();
-    });
+    _modulesSubscription = _firestoreService
+        .watchModules(tutorId)
+        .listen(
+          (items) {
+            _modules = items;
+            _notify();
+          },
+          onError: (Object error) {
+            _error = error.toString();
+            _notify();
+            debugPrint('watchModules error: $error');
+          },
+        );
     _assignmentsSubscription = _firestoreService
         .watchAssignmentsForTutor(tutorId)
-        .listen((items) {
-          _assignments = items;
-          _notify();
-        });
-    _examsSubscription = _firestoreService.watchExams(tutorId).listen((items) {
-      _exams = items;
-      _notify();
-    });
+        .listen(
+          (items) {
+            _assignments = items;
+            _notify();
+          },
+          onError: (Object error) {
+            _error = error.toString();
+            _notify();
+            debugPrint('watchAssignmentsForTutor error: $error');
+          },
+        );
+    _examsSubscription = _firestoreService
+        .watchExams(tutorId)
+        .listen(
+          (items) {
+            _exams = items;
+            _notify();
+          },
+          onError: (Object error) {
+            _error = error.toString();
+            _notify();
+            debugPrint('watchExams error: $error');
+          },
+        );
   }
 
   void watchStudentAssignments(String studentId) {
     _assignmentsSubscription?.cancel();
     _assignmentsSubscription = _firestoreService
         .watchAssignmentsForStudent(studentId)
-        .listen((items) {
-          _assignments = items;
-          _notify();
-        });
+        .listen(
+          (items) {
+            _assignments = items;
+            _notify();
+          },
+          onError: (Object error) {
+            _error = error.toString();
+            _notify();
+            debugPrint('watchAssignmentsForStudent error: $error');
+          },
+        );
   }
 
   void watchCoursesForTutor(String tutorId) {
     _coursesSubscription?.cancel();
     _coursesSubscription = _firestoreService
         .watchCoursesForTutor(tutorId)
-        .listen((items) {
-          _courses = items;
-          _notify();
-        });
+        .listen(
+          (items) {
+            _courses = items;
+            _notify();
+          },
+          onError: (Object error) {
+            _error = error.toString();
+            _notify();
+            debugPrint('watchCoursesForTutor error: $error');
+          },
+        );
   }
 
   Future<CloudinaryUploadResult?> uploadFile({
