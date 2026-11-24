@@ -93,7 +93,7 @@ class BookingDetailScreen extends StatelessWidget {
               onPressed: isCancelled
                   ? null
                   : () async {
-                      await context.read<BookingProvider>().cancelBooking(booking.id);
+                      await context.read<BookingProvider>().cancelBooking(booking);
                       if (context.mounted) Navigator.of(context).pop();
                     },
             ),

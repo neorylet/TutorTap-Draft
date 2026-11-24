@@ -462,9 +462,44 @@ class FirestoreService {
     return booking;
   }
 
-  Future<void> cancelBooking(String bookingId) {
-    return bookings.doc(bookingId).update(<String, dynamic>{
-      'status': BookingStatus.cancelled.value,
+  Future<void> cancelBooking(Booking booking) async {
+    final DocumentReference<Map<String, dynamic>> bookingRef =
+        bookings.doc(booking.id);
+    final DocumentReference<Map<String, dynamic>> tutorRef =
+        tutors.doc(booking.tutorId);
+
+    await _firestore.runTransaction<void>((Transaction transaction) async {
+      final DocumentSnapshot<Map<String, dynamic>> tutorSnapshot =
+          await transaction.get(tutorRef);
+      final Map<String, dynamic>? tutorData = tutorSnapshot.data();
+
+      if (tutorData != null) {
+        final TutorProfile profile = TutorProfile.fromMap(<String, dynamic>{
+          ...tutorData,
+          'uid': booking.tutorId,
+        });
+        final int index = profile.slots.indexWhere(
+          (TimeSlot slot) =>
+              slot.bookedBy == booking.studentId &&
+              slot.start.isAtSameMomentAs(booking.slotStart),
+        );
+        if (index >= 0) {
+          final List<TimeSlot> updatedSlots =
+              List<TimeSlot>.from(profile.slots);
+          updatedSlots[index] = updatedSlots[index].copyWith(
+            bookedBy: null,
+          );
+          transaction.update(tutorRef, <String, dynamic>{
+            'slots': updatedSlots
+                .map((TimeSlot slot) => slot.toMap())
+                .toList(growable: false),
+          });
+        }
+      }
+
+      transaction.update(bookingRef, <String, dynamic>{
+        'status': BookingStatus.cancelled.value,
+      });
     });
   }
 

@@ -198,10 +198,10 @@ class BookingProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> cancelBooking(String bookingId) async {
+  Future<void> cancelBooking(Booking booking) async {
     _error = null;
     try {
-      await _firestoreService.cancelBooking(bookingId);
+      await _firestoreService.cancelBooking(booking);
     } catch (error) {
       _error = error.toString();
     }
