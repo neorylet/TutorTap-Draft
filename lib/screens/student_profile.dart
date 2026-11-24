@@ -84,17 +84,3 @@ class StudentProfileScreen extends StatelessWidget {
     return 'S';
   }
 }
-
-String _getInitials(String displayName, String email) {
-  if (displayName.isNotEmpty && displayName != 'Student') {
-    final List<String> parts = displayName.split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return displayName[0].toUpperCase();
-  }
-  if (email.isNotEmpty) {
-    return email[0].toUpperCase();
-  }
-  return 'S';
-}
