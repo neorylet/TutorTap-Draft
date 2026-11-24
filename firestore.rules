@@ -92,12 +92,18 @@ service cloud.firestore {
     }
 
     // -------- VERIFICATION REQUESTS --------
-    // Create/update: owner only (tutor submitting application after email verified)
     // Read: owner only
-    // Approve/reject: Admin SDK only (via Firebase Console or admin script)
+    // Create: owner only, status must be 'pending', fields whitelisted
+    // Update: owner only, status must remain 'pending', only status/idType writable
+    // Reviewer fields are Admin-SDK only (via Firebase Console or admin script)
     match /verification_requests/{uid} {
       allow read: if isOwner(uid);
-      allow create, update: if isOwner(uid);
+      allow create: if isOwner(uid) &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.keys().hasOnly(['status', 'idType', 'createdAt']);
+      allow update: if isOwner(uid) &&
+        request.resource.data.status == 'pending' &&
+        affectedKeys().hasOnly(['status', 'idType']);
       allow delete: if false;
     }
 
