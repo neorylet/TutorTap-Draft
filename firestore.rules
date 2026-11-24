@@ -15,6 +15,213 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
 
+    function isBookedByTransition(slotBefore, slotAfter, uid) {
+      return slotBefore != null &&
+        slotAfter != null &&
+        (
+          (slotBefore.bookedBy == null && slotAfter.bookedBy == uid) ||
+          (slotBefore.bookedBy == uid && slotAfter.bookedBy == null)
+        );
+    }
+
+    function slotEqualExceptBookedBy(a, b) {
+      return a != null &&
+        b != null &&
+        a.id == b.id &&
+        a.start == b.start &&
+        a.end == b.end &&
+        a.lockedBy == b.lockedBy &&
+        a.lockExpiresAt == b.lockExpiresAt &&
+        a.courseId == b.courseId;
+    }
+
+    function slotEqual(a, b) {
+      return slotEqualExceptBookedBy(a, b) && a.bookedBy == b.bookedBy;
+    }
+
+    function isLockFieldOnly(slotBefore, slotAfter, uid) {
+      return slotEqual(slotBefore, slotAfter) ||
+        (isBookedByTransition(slotBefore, slotAfter, uid) &&
+          slotEqualExceptBookedBy(slotBefore, slotAfter));
+    }
+
+    function slotAtLockFieldOnly(slotsBefore, slotsAfter, i, uid) {
+      return i >= slotsBefore.size() ||
+        isLockFieldOnly(slotsBefore[i], slotsAfter[i], uid);
+    }
+
+    function slotsLockFieldOnly00to15(slotsBefore, slotsAfter, uid) {
+      return slotAtLockFieldOnly(slotsBefore, slotsAfter, 0, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 1, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 2, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 3, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 4, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 5, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 6, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 7, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 8, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 9, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 10, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 11, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 12, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 13, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 14, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 15, uid);
+    }
+
+    function slotsLockFieldOnly16to31(slotsBefore, slotsAfter, uid) {
+      return slotAtLockFieldOnly(slotsBefore, slotsAfter, 16, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 17, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 18, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 19, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 20, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 21, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 22, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 23, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 24, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 25, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 26, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 27, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 28, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 29, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 30, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 31, uid);
+    }
+
+    function slotsLockFieldOnly32to47(slotsBefore, slotsAfter, uid) {
+      return slotAtLockFieldOnly(slotsBefore, slotsAfter, 32, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 33, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 34, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 35, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 36, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 37, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 38, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 39, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 40, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 41, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 42, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 43, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 44, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 45, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 46, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 47, uid);
+    }
+
+    function slotsLockFieldOnly48to63(slotsBefore, slotsAfter, uid) {
+      return slotAtLockFieldOnly(slotsBefore, slotsAfter, 48, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 49, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 50, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 51, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 52, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 53, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 54, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 55, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 56, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 57, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 58, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 59, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 60, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 61, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 62, uid) &&
+        slotAtLockFieldOnly(slotsBefore, slotsAfter, 63, uid);
+    }
+
+    function slotTransitionAt(slotsBefore, slotsAfter, i, uid) {
+      return i < slotsBefore.size() &&
+        isBookedByTransition(slotsBefore[i], slotsAfter[i], uid);
+    }
+
+    function transitionCount00to15(slotsBefore, slotsAfter, uid) {
+      return (slotTransitionAt(slotsBefore, slotsAfter, 0, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 1, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 2, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 3, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 4, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 5, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 6, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 7, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 8, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 9, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 10, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 11, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 12, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 13, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 14, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 15, uid) ? 1 : 0);
+    }
+
+    function transitionCount16to31(slotsBefore, slotsAfter, uid) {
+      return (slotTransitionAt(slotsBefore, slotsAfter, 16, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 17, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 18, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 19, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 20, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 21, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 22, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 23, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 24, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 25, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 26, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 27, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 28, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 29, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 30, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 31, uid) ? 1 : 0);
+    }
+
+    function transitionCount32to47(slotsBefore, slotsAfter, uid) {
+      return (slotTransitionAt(slotsBefore, slotsAfter, 32, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 33, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 34, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 35, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 36, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 37, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 38, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 39, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 40, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 41, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 42, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 43, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 44, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 45, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 46, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 47, uid) ? 1 : 0);
+    }
+
+    function transitionCount48to63(slotsBefore, slotsAfter, uid) {
+      return (slotTransitionAt(slotsBefore, slotsAfter, 48, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 49, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 50, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 51, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 52, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 53, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 54, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 55, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 56, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 57, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 58, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 59, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 60, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 61, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 62, uid) ? 1 : 0) +
+        (slotTransitionAt(slotsBefore, slotsAfter, 63, uid) ? 1 : 0);
+    }
+
+    function slotsExactlyOneLockTransition(slotsBefore, slotsAfter, uid) {
+      return slotsBefore.size() == slotsAfter.size() &&
+        slotsBefore.size() <= 64 &&
+        slotsLockFieldOnly00to15(slotsBefore, slotsAfter, uid) &&
+        slotsLockFieldOnly16to31(slotsBefore, slotsAfter, uid) &&
+        slotsLockFieldOnly32to47(slotsBefore, slotsAfter, uid) &&
+        slotsLockFieldOnly48to63(slotsBefore, slotsAfter, uid) &&
+        (
+          transitionCount00to15(slotsBefore, slotsAfter, uid) +
+          transitionCount16to31(slotsBefore, slotsAfter, uid) +
+          transitionCount32to47(slotsBefore, slotsAfter, uid) +
+          transitionCount48to63(slotsBefore, slotsAfter, uid)
+        ) <= 1;
+    }
+
     // -------- USERS --------
     // Unchanged from current repo rules. Role-transition guard is Session 3 work.
     match /users/{uid} {
@@ -28,7 +235,7 @@ service cloud.firestore {
     // Read: public (student browse)
     // Create: owner only, must start with pending verification + zero rating
     // Update (owner): cannot change uid, verificationStatus, rating, ratingCount
-    // Update (student, for booking): CAN ONLY touch the 'slots' array field
+    // Update (non-owner): can only flip bookedBy on one slot via the slots array
     // Delete: disabled
     match /tutors/{uid} {
       allow read: if true;
@@ -50,10 +257,14 @@ service cloud.firestore {
             get(/databases/$(database)/documents/courses/$(slot.courseId)).data.tutorId == uid
           ));
 
-      // Slot-lock / booking / reschedule: any signed-in user can write ONLY slots
+      // Non-owner booking/cancel: only one bookedBy null↔uid transition on one slot
       // Additionally, if a slot has a courseId, it must reference a course owned by this tutor
       allow update: if isSignedIn() &&
+        !isOwner(uid) &&
         affectedKeys().hasOnly(['slots']) &&
+        slotsExactlyOneLockTransition(resource.data.slots,
+                                       request.resource.data.slots,
+                                       request.auth.uid) &&
         request.resource.data.slots.every(slot =>
           slot.courseId == null ||
           get(/databases/$(database)/documents/courses/$(slot.courseId)).data.tutorId == uid
