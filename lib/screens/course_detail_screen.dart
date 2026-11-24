@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../core/constants/cloudinary_config.dart';
 import '../models/classroom_module.dart';
@@ -296,6 +295,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     String moduleId,
   ) async {
     final ClassroomProvider provider = context.read<ClassroomProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     final List<Exam> unattachedExams = provider.exams
         .where((exam) => exam.moduleId == null)
         .toList();
@@ -341,8 +342,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     if (!mounted) return;
 
     if (choice == 'create') {
-      if (!mounted) return;
-      Navigator.of(context).push(
+      navigator.push(
         MaterialPageRoute<void>(
           builder: (_) => CreateExamScreen(
             tutorId: widget.course.tutorId,
@@ -358,26 +358,23 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       if (!mounted) return;
 
       if (!success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to attach quiz: ${provider.error}')),
-          );
-        }
+        messenger.showSnackBar(
+          SnackBar(content: Text('Failed to attach quiz: ${provider.error}')),
+        );
       }
     }
   }
 
   Future<void> _detachQuiz(BuildContext context, String examId) async {
     final ClassroomProvider provider = context.read<ClassroomProvider>();
+    final messenger = ScaffoldMessenger.of(context);
     final bool success = await provider.detachExam(examId: examId);
     if (!mounted) return;
 
     if (!success) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to detach quiz: ${provider.error}')),
-        );
-      }
+      messenger.showSnackBar(
+        SnackBar(content: Text('Failed to detach quiz: ${provider.error}')),
+      );
     }
   }
 }
