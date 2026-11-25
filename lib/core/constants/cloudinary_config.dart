@@ -1,6 +1,6 @@
 abstract final class CloudinaryConfig {
-  static const String cloudName = 'YOUR_CLOUD_NAME';
-  static const String unsignedUploadPreset = 'tutortap_unsigned';
+  static const String cloudName = 'lyz8sp5z';
+  static const String unsignedUploadPreset = 'TutorTap';
   static const int maxFileSizeBytes = 20 * 1024 * 1024; // 20MB
 
   static Uri uploadUri() =>

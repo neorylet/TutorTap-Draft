@@ -1,4 +1,5 @@
 import '../core/utils/firestore_value.dart';
+import 'module_file.dart';
 
 class ClassroomModule {
   const ClassroomModule({
@@ -6,9 +7,8 @@ class ClassroomModule {
     required this.tutorId,
     required this.title,
     required this.description,
-    required this.fileUrl,
-    required this.fileType,
     required this.createdAt,
+    this.files = const <ModuleFile>[],
     this.courseId,
     this.orderIndex = 0,
   });
@@ -19,9 +19,8 @@ class ClassroomModule {
       tutorId: stringFrom(map['tutorId']),
       title: stringFrom(map['title']),
       description: stringFrom(map['description']),
-      fileUrl: stringFrom(map['fileUrl']),
-      fileType: stringFrom(map['fileType']),
       createdAt: dateTimeFromFirestore(map['createdAt']) ?? DateTime.now(),
+      files: _filesFrom(map),
       courseId: map['courseId'] as String?,
       orderIndex: intFrom(map['orderIndex'], 0),
     );
@@ -31,9 +30,7 @@ class ClassroomModule {
   final String tutorId;
   final String title;
   final String description;
-  final String fileUrl;
-  // Accepted values: 'pdf', 'ppt', 'pptx'
-  final String fileType;
+  final List<ModuleFile> files;
   final DateTime createdAt;
   final String? courseId;
   final int orderIndex;
@@ -43,8 +40,7 @@ class ClassroomModule {
     'tutorId': tutorId,
     'title': title,
     'description': description,
-    'fileUrl': fileUrl,
-    'fileType': fileType,
+    'files': files.map((ModuleFile f) => f.toMap()).toList(),
     'createdAt': dateTimeToFirestore(createdAt),
     'courseId': courseId,
     'orderIndex': orderIndex,
@@ -55,8 +51,7 @@ class ClassroomModule {
     String? tutorId,
     String? title,
     String? description,
-    String? fileUrl,
-    String? fileType,
+    List<ModuleFile>? files,
     DateTime? createdAt,
     Object? courseId = kUnset,
     int? orderIndex,
@@ -66,11 +61,41 @@ class ClassroomModule {
       tutorId: tutorId ?? this.tutorId,
       title: title ?? this.title,
       description: description ?? this.description,
-      fileUrl: fileUrl ?? this.fileUrl,
-      fileType: fileType ?? this.fileType,
+      files: files ?? this.files,
       createdAt: createdAt ?? this.createdAt,
       courseId: courseId == kUnset ? this.courseId : courseId as String?,
       orderIndex: orderIndex ?? this.orderIndex,
     );
+  }
+
+  static List<ModuleFile> _filesFrom(Map<String, dynamic> map) {
+    final Object? raw = map['files'];
+    if (raw is List && raw.isNotEmpty) {
+      final List<ModuleFile> parsed = raw
+          .whereType<Map<Object?, Object?>>()
+          .map((e) => ModuleFile.fromMap(Map<String, dynamic>.from(e)))
+          .where((ModuleFile f) => f.url.isNotEmpty)
+          .toList(growable: false);
+      if (parsed.isNotEmpty) return parsed;
+    }
+    // Legacy single-file documents.
+    final String legacyUrl = stringFrom(map['fileUrl']);
+    if (legacyUrl.isEmpty) return const <ModuleFile>[];
+    final String legacyType = stringFrom(map['fileType']);
+    return <ModuleFile>[
+      ModuleFile(
+        url: legacyUrl,
+        type: legacyType,
+        name: _nameFromUrl(legacyUrl, legacyType),
+      ),
+    ];
+  }
+
+  static String _nameFromUrl(String url, String type) {
+    final List<String> segments = Uri.parse(url).pathSegments;
+    if (segments.isEmpty) {
+      return type.isEmpty ? 'Document' : 'Document.${type.toLowerCase()}';
+    }
+    return Uri.decodeComponent(segments.last);
   }
 }

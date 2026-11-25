@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/constants/cloudinary_config.dart';
@@ -7,6 +9,7 @@ import '../models/assignment.dart';
 import '../models/classroom_module.dart';
 import '../models/course.dart';
 import '../models/exam.dart';
+import '../models/module_file.dart';
 import '../services/cloudinary_service.dart';
 import '../services/firestore_service.dart';
 
@@ -222,25 +225,41 @@ class ClassroomProvider extends ChangeNotifier {
     _notify();
   }
 
-  Future<void> createModule({
+  static const int maxModuleFiles = 10;
+
+  Future<List<ModuleFile>> uploadModuleDocuments({
     required String tutorId,
-    required String title,
-    required String description,
-    required String fileUrl,
-    required String fileType,
+    required List<PlatformFile> picked,
+    required Future<void> Function(String message) onReject,
   }) async {
-    final DateTime now = DateTime.now();
-    await _firestoreService.addModule(
-      ClassroomModule(
-        id: '',
-        tutorId: tutorId,
-        title: title,
-        description: description,
-        fileUrl: fileUrl,
-        fileType: fileType,
-        createdAt: now,
-      ),
-    );
+    final List<ModuleFile> uploaded = <ModuleFile>[];
+    for (final PlatformFile file in picked) {
+      final String? path = file.path;
+      if (path == null) continue;
+      if (await File(path).length() > CloudinaryConfig.maxFileSizeBytes) {
+        await onReject('${file.name} exceeds 20MB limit');
+        continue;
+      }
+      final CloudinaryUploadResult? result = await uploadFile(
+        filePath: path,
+        purpose: UploadPurpose.module,
+        ownerId: tutorId,
+        fileName: file.name,
+      );
+      if (result == null) {
+        await onReject('${file.name}: ${error ?? 'upload failed'}');
+        continue;
+      }
+      uploaded.add(
+        ModuleFile(
+          url: result.secureUrl,
+          type: file.name.split('.').last.toLowerCase(),
+          name: file.name,
+          publicId: result.publicId,
+        ),
+      );
+    }
+    return uploaded;
   }
 
   Future<void> createCourse({
@@ -269,8 +288,7 @@ class ClassroomProvider extends ChangeNotifier {
     required String courseId,
     required String title,
     required String description,
-    String fileUrl = '',
-    String fileType = '',
+    List<ModuleFile> files = const <ModuleFile>[],
     required int orderIndex,
   }) async {
     try {
@@ -281,8 +299,7 @@ class ClassroomProvider extends ChangeNotifier {
           tutorId: tutorId,
           title: title,
           description: description,
-          fileUrl: fileUrl,
-          fileType: fileType,
+          files: files,
           createdAt: now,
           courseId: courseId,
           orderIndex: orderIndex,
@@ -333,6 +350,31 @@ class ClassroomProvider extends ChangeNotifier {
       _notify();
       return false;
     }
+  }
+
+  Future<bool> appendModuleFiles(
+    ClassroomModule module,
+    List<ModuleFile> files,
+  ) async {
+    if (files.isEmpty) return true;
+    final List<ModuleFile> merged = <ModuleFile>[
+      ...module.files,
+      ...files.where(
+        (ModuleFile f) => module.files.every((ModuleFile e) => e.url != f.url),
+      ),
+    ];
+    return updateModule(module.copyWith(files: merged));
+  }
+
+  // Reference-only removal: unsigned uploads cannot delete Cloudinary
+  // assets (Admin API destroy needs API key + secret, or a delete token
+  // that expires 10 minutes after upload). The asset stays in
+  // tutortap/modules/<tutorId>/. Tracked as the Cloudinary cleanup task.
+  Future<bool> removeModuleFile(ClassroomModule module, ModuleFile file) async {
+    final List<ModuleFile> remaining = module.files
+        .where((ModuleFile f) => f.url != file.url)
+        .toList(growable: false);
+    return updateModule(module.copyWith(files: remaining));
   }
 
   Future<bool> deleteExam({required String examId}) async {

@@ -8,6 +8,7 @@ import '../models/classroom_module.dart';
 import '../models/exam.dart';
 import '../models/flashcard_deck.dart';
 import '../models/mock_exam.dart';
+import '../models/module_file.dart';
 import '../models/question.dart';
 import '../models/time_slot.dart';
 import '../models/tutor_profile.dart';
@@ -36,15 +37,24 @@ class SeedService {
     );
 
     for (final TutorProfile tutor in _sampleTutors(now)) {
-      batch.set(_firestore.collection('users').doc(tutor.uid), _tutorUser(tutor, now).toMap());
+      batch.set(
+        _firestore.collection('users').doc(tutor.uid),
+        _tutorUser(tutor, now).toMap(),
+      );
       batch.set(_firestore.collection('tutors').doc(tutor.uid), tutor.toMap());
     }
 
     for (final Booking booking in _sampleBookings(now)) {
-      batch.set(_firestore.collection('bookings').doc(booking.id), booking.toMap());
+      batch.set(
+        _firestore.collection('bookings').doc(booking.id),
+        booking.toMap(),
+      );
     }
     for (final ClassroomModule module in _sampleModules(now)) {
-      batch.set(_firestore.collection('modules').doc(module.id), module.toMap());
+      batch.set(
+        _firestore.collection('modules').doc(module.id),
+        module.toMap(),
+      );
     }
     for (final Assignment assignment in _sampleAssignments(now)) {
       batch.set(
@@ -183,7 +193,12 @@ class SeedService {
     final List<TimeSlot> slots = <TimeSlot>[];
     for (int day = 1; day <= 3; day++) {
       for (final int hour in <int>[9, 11, 14, 16]) {
-        final DateTime start = DateTime(now.year, now.month, now.day + day, hour);
+        final DateTime start = DateTime(
+          now.year,
+          now.month,
+          now.day + day,
+          hour,
+        );
         TimeSlot slot = TimeSlot(
           id: '$tutorId-d$day-h$hour',
           start: start,
@@ -270,7 +285,12 @@ class SeedService {
     required DateTime now,
     required OnlineSession session,
   }) {
-    final DateTime start = DateTime(now.year, now.month, now.day + dayOffset, hour);
+    final DateTime start = DateTime(
+      now.year,
+      now.month,
+      now.day + dayOffset,
+      hour,
+    );
     final CommissionBreakdown money = AppConstants.calculateCommission(rate);
     return Booking(
       id: id,
@@ -298,10 +318,15 @@ class SeedService {
       ClassroomModule(
         id: 'seed-module-1',
         tutorId: 'ana',
-        title: 'Algebra Basics.pdf',
+        title: 'Algebra Basics',
         description: 'Linear equations and graphing review notes.',
-        fileUrl: 'https://res.cloudinary.com/demo/image/upload/sample.pdf',
-        fileType: 'pdf',
+        files: const <ModuleFile>[
+          ModuleFile(
+            url: 'https://res.cloudinary.com/demo/image/upload/sample.pdf',
+            type: 'pdf',
+            name: 'algebra-basics.pdf',
+          ),
+        ],
         createdAt: now.subtract(const Duration(days: 3)),
       ),
       ClassroomModule(
@@ -309,8 +334,13 @@ class SeedService {
         tutorId: 'ana',
         title: 'Functions Cheat Sheet',
         description: 'One-page reference for the functions quiz.',
-        fileUrl: 'https://res.cloudinary.com/demo/image/upload/sample.png',
-        fileType: 'image',
+        files: const <ModuleFile>[
+          ModuleFile(
+            url: 'https://res.cloudinary.com/demo/image/upload/sample.png',
+            type: 'image',
+            name: 'functions-cheat-sheet.png',
+          ),
+        ],
         createdAt: now.subtract(const Duration(days: 2)),
       ),
     ];

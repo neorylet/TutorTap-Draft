@@ -1,12 +1,15 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../core/utils/module_file_icon.dart';
 import '../models/classroom_module.dart';
 import '../models/exam.dart';
+import '../models/module_file.dart';
 import '../providers/classroom_provider.dart';
 import '../widgets/confirm_dialog.dart';
+import 'document_view_screen.dart';
 import 'exam_preview_screen.dart';
 import 'screen_scaffold.dart';
 
@@ -78,8 +81,12 @@ class ModulePreviewScreen extends StatelessWidget {
       ],
       body: Consumer<ClassroomProvider>(
         builder: (context, provider, child) {
+          final ClassroomModule live = provider.modules.firstWhere(
+            (ClassroomModule m) => m.id == module.id,
+            orElse: () => module,
+          );
           final Exam? attachedExam = provider.exams
-              .where((e) => e.moduleId == module.id)
+              .where((e) => e.moduleId == live.id)
               .firstOrNull;
 
           return ListView(
@@ -96,22 +103,86 @@ class ModulePreviewScreen extends StatelessWidget {
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
                       const SizedBox(height: 8),
-                      Text(module.description),
+                      Text(live.description),
                     ],
                   ),
                 ),
               ),
-              if (module.fileUrl.isNotEmpty) ...<Widget>[
-                const SizedBox(height: 16),
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.attach_file),
-                    title: const Text('Attached file'),
-                    trailing: const Icon(Icons.open_in_new),
-                    onTap: () => _openAttachment(module.fileUrl),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Documents',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 8),
+                      if (live.files.isEmpty)
+                        const Text(
+                          'No documents attached',
+                          style: TextStyle(color: Colors.grey),
+                        )
+                      else
+                        ...live.files.map(
+                          (ModuleFile file) => ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(iconForModuleFile(file.type)),
+                            title: Text(
+                              file.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(file.type.toUpperCase()),
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => DocumentViewScreen(file: file),
+                              ),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                IconButton(
+                                  icon: const Icon(Icons.visibility_outlined),
+                                  tooltip: 'Preview',
+                                  onPressed: () => Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) =>
+                                          DocumentViewScreen(file: file),
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline),
+                                  tooltip: 'Remove document',
+                                  onPressed: () =>
+                                      _removeFile(context, live, file),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed:
+                            live.files.length >=
+                                ClassroomProvider.maxModuleFiles
+                            ? null
+                            : () => _addDocuments(context, live, tutorId),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add documents'),
+                      ),
+                      if (live.files.length >= ClassroomProvider.maxModuleFiles)
+                        Text(
+                          'Maximum ${ClassroomProvider.maxModuleFiles} documents per module',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: Colors.grey),
+                        ),
+                    ],
                   ),
                 ),
-              ],
+              ),
               const SizedBox(height: 16),
               Card(
                 child: Padding(
@@ -162,11 +233,76 @@ class ModulePreviewScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _openAttachment(String url) async {
-    final Uri uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+  Future<void> _addDocuments(
+    BuildContext context,
+    ClassroomModule module,
+    String tutorId,
+  ) async {
+    final ClassroomProvider provider = context.read<ClassroomProvider>();
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+
+    final List<PlatformFile> picked = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: <String>['pdf', 'ppt', 'pptx', 'doc', 'docx'],
+      dialogTitle: 'Select documents',
+    );
+    if (picked.isEmpty) return;
+
+    final int room = ClassroomProvider.maxModuleFiles - module.files.length;
+    if (picked.length > room) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Only $room more document(s) fit in this module'),
+        ),
+      );
+      return;
     }
+
+    final List<ModuleFile> uploaded = await provider.uploadModuleDocuments(
+      tutorId: tutorId,
+      picked: picked,
+      onReject: (String message) async {
+        messenger.showSnackBar(SnackBar(content: Text(message)));
+      },
+    );
+    if (uploaded.isEmpty) return;
+
+    final bool ok = await provider.appendModuleFiles(module, uploaded);
+    if (!ok) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(provider.error ?? 'Could not save documents')),
+      );
+    }
+  }
+
+  Future<void> _removeFile(
+    BuildContext context,
+    ClassroomModule module,
+    ModuleFile file,
+  ) async {
+    final ClassroomProvider provider = context.read<ClassroomProvider>();
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => ConfirmDialog(
+        title: 'Remove document',
+        message: 'Remove "${file.name}" from this module?',
+        confirmLabel: 'Remove',
+      ),
+    );
+    if (confirmed != true) return;
+
+    final bool ok = await provider.removeModuleFile(module, file);
+    if (!ok) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(provider.error ?? 'Could not remove document')),
+      );
+      return;
+    }
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Removed from this module')),
+    );
   }
 
   Future<void> _showEditModuleDialog(
