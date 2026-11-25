@@ -359,25 +359,16 @@ service cloud.firestore {
         request.resource.data.uid == resource.data.uid &&
         request.resource.data.verificationStatus == resource.data.verificationStatus &&
         request.resource.data.rating == resource.data.rating &&
-        request.resource.data.ratingCount == resource.data.ratingCount &&
-        (!('slots' in request.resource.data) ||
-          request.resource.data.slots.every(slot =>
-            slot.courseId == null ||
-            get(/databases/$(database)/documents/courses/$(slot.courseId)).data.tutorId == uid
-          ));
+        request.resource.data.ratingCount == resource.data.ratingCount;
 
-      // Non-owner booking/cancel: only one bookedBy null↔uid transition on one slot
-      // Additionally, if a slot has a courseId, it must reference a course owned by this tutor
+      // Non-owner booking/cancel: slots only, one bookedBy transition per write.
+      // courseId is frozen by slotEqualExceptBookedBy, so it cannot change here.
       allow update: if isSignedIn() &&
         !isOwner(uid) &&
         affectedKeys().hasOnly(['slots']) &&
         slotsExactlyOneLockTransition(resource.data.slots,
                                        request.resource.data.slots,
-                                       request.auth.uid) &&
-        request.resource.data.slots.every(slot =>
-          slot.courseId == null ||
-          get(/databases/$(database)/documents/courses/$(slot.courseId)).data.tutorId == uid
-        );
+                                       request.auth.uid);
 
       allow delete: if false;
     }
