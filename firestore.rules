@@ -15,6 +15,11 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
 
+    function isStudentOrTutor() {
+      return request.resource.data.keys().hasAll(['role']) &&
+        request.resource.data.role in ['student', 'tutor'];
+    }
+
     function isBookedByTransition(slotBefore, slotAfter, uid) {
       return slotBefore != null &&
         slotAfter != null &&
@@ -207,6 +212,97 @@ service cloud.firestore {
         (slotTransitionAt(slotsBefore, slotsAfter, 63, uid) ? 1 : 0);
     }
 
+    function slotClaimDelta(slotBefore, slotAfter, uid) {
+      return slotBefore.bookedBy == null && slotAfter.bookedBy == uid ? 1 : 0;
+    }
+
+    function slotReleaseDelta(slotBefore, slotAfter, uid) {
+      return slotBefore.bookedBy == uid && slotAfter.bookedBy == null ? 1 : 0;
+    }
+
+    function slotDelta(slotsBefore, slotsAfter, i, uid) {
+      return i < slotsBefore.size()
+        ? slotClaimDelta(slotsBefore[i], slotsAfter[i], uid) -
+          slotReleaseDelta(slotsBefore[i], slotsAfter[i], uid)
+        : 0;
+    }
+
+    function deltaSum00to15(slotsBefore, slotsAfter, uid) {
+      return slotDelta(slotsBefore, slotsAfter, 0, uid) +
+        slotDelta(slotsBefore, slotsAfter, 1, uid) +
+        slotDelta(slotsBefore, slotsAfter, 2, uid) +
+        slotDelta(slotsBefore, slotsAfter, 3, uid) +
+        slotDelta(slotsBefore, slotsAfter, 4, uid) +
+        slotDelta(slotsBefore, slotsAfter, 5, uid) +
+        slotDelta(slotsBefore, slotsAfter, 6, uid) +
+        slotDelta(slotsBefore, slotsAfter, 7, uid) +
+        slotDelta(slotsBefore, slotsAfter, 8, uid) +
+        slotDelta(slotsBefore, slotsAfter, 9, uid) +
+        slotDelta(slotsBefore, slotsAfter, 10, uid) +
+        slotDelta(slotsBefore, slotsAfter, 11, uid) +
+        slotDelta(slotsBefore, slotsAfter, 12, uid) +
+        slotDelta(slotsBefore, slotsAfter, 13, uid) +
+        slotDelta(slotsBefore, slotsAfter, 14, uid) +
+        slotDelta(slotsBefore, slotsAfter, 15, uid);
+    }
+
+    function deltaSum16to31(slotsBefore, slotsAfter, uid) {
+      return slotDelta(slotsBefore, slotsAfter, 16, uid) +
+        slotDelta(slotsBefore, slotsAfter, 17, uid) +
+        slotDelta(slotsBefore, slotsAfter, 18, uid) +
+        slotDelta(slotsBefore, slotsAfter, 19, uid) +
+        slotDelta(slotsBefore, slotsAfter, 20, uid) +
+        slotDelta(slotsBefore, slotsAfter, 21, uid) +
+        slotDelta(slotsBefore, slotsAfter, 22, uid) +
+        slotDelta(slotsBefore, slotsAfter, 23, uid) +
+        slotDelta(slotsBefore, slotsAfter, 24, uid) +
+        slotDelta(slotsBefore, slotsAfter, 25, uid) +
+        slotDelta(slotsBefore, slotsAfter, 26, uid) +
+        slotDelta(slotsBefore, slotsAfter, 27, uid) +
+        slotDelta(slotsBefore, slotsAfter, 28, uid) +
+        slotDelta(slotsBefore, slotsAfter, 29, uid) +
+        slotDelta(slotsBefore, slotsAfter, 30, uid) +
+        slotDelta(slotsBefore, slotsAfter, 31, uid);
+    }
+
+    function deltaSum32to47(slotsBefore, slotsAfter, uid) {
+      return slotDelta(slotsBefore, slotsAfter, 32, uid) +
+        slotDelta(slotsBefore, slotsAfter, 33, uid) +
+        slotDelta(slotsBefore, slotsAfter, 34, uid) +
+        slotDelta(slotsBefore, slotsAfter, 35, uid) +
+        slotDelta(slotsBefore, slotsAfter, 36, uid) +
+        slotDelta(slotsBefore, slotsAfter, 37, uid) +
+        slotDelta(slotsBefore, slotsAfter, 38, uid) +
+        slotDelta(slotsBefore, slotsAfter, 39, uid) +
+        slotDelta(slotsBefore, slotsAfter, 40, uid) +
+        slotDelta(slotsBefore, slotsAfter, 41, uid) +
+        slotDelta(slotsBefore, slotsAfter, 42, uid) +
+        slotDelta(slotsBefore, slotsAfter, 43, uid) +
+        slotDelta(slotsBefore, slotsAfter, 44, uid) +
+        slotDelta(slotsBefore, slotsAfter, 45, uid) +
+        slotDelta(slotsBefore, slotsAfter, 46, uid) +
+        slotDelta(slotsBefore, slotsAfter, 47, uid);
+    }
+
+    function deltaSum48to63(slotsBefore, slotsAfter, uid) {
+      return slotDelta(slotsBefore, slotsAfter, 48, uid) +
+        slotDelta(slotsBefore, slotsAfter, 49, uid) +
+        slotDelta(slotsBefore, slotsAfter, 50, uid) +
+        slotDelta(slotsBefore, slotsAfter, 51, uid) +
+        slotDelta(slotsBefore, slotsAfter, 52, uid) +
+        slotDelta(slotsBefore, slotsAfter, 53, uid) +
+        slotDelta(slotsBefore, slotsAfter, 54, uid) +
+        slotDelta(slotsBefore, slotsAfter, 55, uid) +
+        slotDelta(slotsBefore, slotsAfter, 56, uid) +
+        slotDelta(slotsBefore, slotsAfter, 57, uid) +
+        slotDelta(slotsBefore, slotsAfter, 58, uid) +
+        slotDelta(slotsBefore, slotsAfter, 59, uid) +
+        slotDelta(slotsBefore, slotsAfter, 60, uid) +
+        slotDelta(slotsBefore, slotsAfter, 61, uid) +
+        slotDelta(slotsBefore, slotsAfter, 62, uid) +
+        slotDelta(slotsBefore, slotsAfter, 63, uid);
+    }
+
     function slotsExactlyOneLockTransition(slotsBefore, slotsAfter, uid) {
       return slotsBefore.size() == slotsAfter.size() &&
         slotsBefore.size() <= 64 &&
@@ -219,15 +315,28 @@ service cloud.firestore {
           transitionCount16to31(slotsBefore, slotsAfter, uid) +
           transitionCount32to47(slotsBefore, slotsAfter, uid) +
           transitionCount48to63(slotsBefore, slotsAfter, uid)
+        ) <= 2 &&
+        (
+          deltaSum00to15(slotsBefore, slotsAfter, uid) +
+          deltaSum16to31(slotsBefore, slotsAfter, uid) +
+          deltaSum32to47(slotsBefore, slotsAfter, uid) +
+          deltaSum48to63(slotsBefore, slotsAfter, uid)
+        ) >= -1 &&
+        (
+          deltaSum00to15(slotsBefore, slotsAfter, uid) +
+          deltaSum16to31(slotsBefore, slotsAfter, uid) +
+          deltaSum32to47(slotsBefore, slotsAfter, uid) +
+          deltaSum48to63(slotsBefore, slotsAfter, uid)
         ) <= 1;
     }
 
     // -------- USERS --------
-    // Unchanged from current repo rules. Role-transition guard is Session 3 work.
+    // Owner creates with role in ('student','tutor') only; owner cannot
+    // mutate role on update. Admin-SDK changes role via Cloud Functions.
     match /users/{uid} {
       allow read: if isOwner(uid);
-      allow create: if isOwner(uid);
-      allow update: if isOwner(uid);
+      allow create: if isOwner(uid) && isStudentOrTutor();
+      allow update: if isOwner(uid) && !('role' in affectedKeys());
       allow delete: if false;
     }
 
