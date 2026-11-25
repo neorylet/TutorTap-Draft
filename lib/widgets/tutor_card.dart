@@ -60,10 +60,21 @@ class TutorCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
-            const SizedBox(width: 6),
-            const StatusBadge(label: 'Verified', tone: StatusTone.positive),
+            if (tutor.verificationStatus == VerificationStatus.verified) ...<Widget>[
+              const SizedBox(width: 6),
+              const StatusBadge(label: 'Reviewed', tone: StatusTone.positive),
+            ],
           ],
         ),
+        if (tutor.headline.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 2),
+          Text(
+            tutor.headline,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
         const SizedBox(height: 5),
         Wrap(
           spacing: 4,

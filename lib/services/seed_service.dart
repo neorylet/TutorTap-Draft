@@ -11,6 +11,7 @@ import '../models/mock_exam.dart';
 import '../models/module_file.dart';
 import '../models/question.dart';
 import '../models/time_slot.dart';
+import '../models/tutor_private_profile.dart';
 import '../models/tutor_profile.dart';
 
 class SeedService {
@@ -42,6 +43,14 @@ class SeedService {
         _tutorUser(tutor, now).toMap(),
       );
       batch.set(_firestore.collection('tutors').doc(tutor.uid), tutor.toMap());
+      batch.set(
+        _firestore.collection('tutor_private').doc(tutor.uid),
+        TutorPrivateProfile(
+          uid: tutor.uid,
+          meetingRoomInfo: 'meet.tutortap.app/${tutor.uid}-room',
+          contactEmail: '${tutor.uid}@tutortap.app',
+        ).toMap(),
+      );
     }
 
     for (final Booking booking in _sampleBookings(now)) {
@@ -93,67 +102,165 @@ class SeedService {
       _tutor(
         uid: 'ana',
         name: 'Ana Reyes',
+        headline: 'Patient math tutor for algebra and calculus',
         subjects: const <String>['Math'],
+        languages: const <String>['English', 'Filipino'],
+        teachingMode: 'online',
+        experienceYears: 5,
+        experience: const <TutorExperience>[
+          TutorExperience(
+            role: 'Math Tutor',
+            organization: 'TutorTap',
+            startYear: 2021,
+            endYear: 2026,
+            description: 'Guided students through algebra, calculus, and exam prep.',
+          ),
+        ],
+        education: const <TutorEducation>[
+          TutorEducation(school: 'UP Diliman', degree: 'BS Mathematics', year: 2020),
+        ],
+        certifications: const <TutorCertification>[
+          TutorCertification(name: 'TESOL', issuer: 'TESOL Intl', year: 2022),
+        ],
         rate: 450,
         rating: 4.9,
         reviews: 128,
         bio: 'Patient math tutor who makes algebra and calculus feel simple.',
-        room: 'meet.tutortap.app/ana-math-2014',
         now: now,
       ),
       _tutor(
         uid: 'ben',
         name: 'Ben Castillo',
+        headline: 'CS mentor for algorithms and projects',
         subjects: const <String>['Computer Science'],
+        languages: const <String>['English'],
+        teachingMode: 'both',
+        experienceYears: 4,
+        experience: const <TutorExperience>[
+          TutorExperience(
+            role: 'Software Mentor',
+            organization: 'Code Lab',
+            startYear: 2022,
+            endYear: 2026,
+            description: 'Mentored students in data structures and project work.',
+          ),
+        ],
+        education: const <TutorEducation>[
+          TutorEducation(school: 'DLSU', degree: 'BS Computer Science', year: 2021),
+        ],
+        certifications: const <TutorCertification>[],
         rate: 600,
         rating: 4.8,
         reviews: 96,
         bio: 'CS mentor focused on data structures, algorithms and projects.',
-        room: 'meet.tutortap.app/ben-cs-2014',
         now: now,
       ),
       _tutor(
         uid: 'carla',
         name: 'Carla Dizon',
+        headline: 'English coach for writing and speaking',
         subjects: const <String>['English'],
+        languages: const <String>['English', 'Filipino'],
+        teachingMode: 'online',
+        experienceYears: 6,
+        experience: const <TutorExperience>[
+          TutorExperience(
+            role: 'English Tutor',
+            organization: 'Freelance',
+            startYear: 2020,
+            endYear: 2026,
+            description: 'Helped learners improve grammar, essays, and confidence.',
+          ),
+        ],
+        education: const <TutorEducation>[
+          TutorEducation(school: 'Ateneo de Manila', degree: 'BA English', year: 2019),
+        ],
+        certifications: const <TutorCertification>[],
         rate: 380,
         rating: 4.7,
         reviews: 74,
         bio: 'English tutor for grammar, essays and confident speaking.',
-        room: 'meet.tutortap.app/carla-english-2014',
         now: now,
       ),
       _tutor(
         uid: 'daniel',
         name: 'Daniel Ocampo',
+        headline: 'Math and CS exam prep specialist',
         subjects: const <String>['Math', 'Computer Science'],
+        languages: const <String>['English'],
+        teachingMode: 'online',
+        experienceYears: 3,
+        experience: const <TutorExperience>[
+          TutorExperience(
+            role: 'Tutor',
+            organization: 'TutorTap',
+            startYear: 2023,
+            endYear: 2026,
+            description: 'Focused on problem solving and exam preparation.',
+          ),
+        ],
+        education: const <TutorEducation>[
+          TutorEducation(school: 'UST', degree: 'BS Applied Math', year: 2022),
+        ],
+        certifications: const <TutorCertification>[],
         rate: 520,
         rating: 4.6,
         reviews: 63,
         bio: 'Math and CS tutor who loves exam prep and problem solving.',
-        room: 'meet.tutortap.app/daniel-math-2014',
         now: now,
       ),
       _tutor(
         uid: 'elise',
         name: 'Elise Tan',
+        headline: 'Gentle guide for reading and literature',
         subjects: const <String>['English'],
+        languages: const <String>['English', 'Mandarin'],
+        teachingMode: 'in-person',
+        experienceYears: 7,
+        experience: const <TutorExperience>[
+          TutorExperience(
+            role: 'Literature Tutor',
+            organization: 'Learning Center',
+            startYear: 2019,
+            endYear: 2026,
+            description: 'Supported students in reading comprehension and writing.',
+          ),
+        ],
+        education: const <TutorEducation>[
+          TutorEducation(school: 'UP Baguio', degree: 'BA Communication', year: 2018),
+        ],
+        certifications: const <TutorCertification>[],
         rate: 420,
         rating: 4.9,
         reviews: 112,
         bio: 'Reading, writing and literature tutor with a gentle approach.',
-        room: 'meet.tutortap.app/elise-english-2014',
         now: now,
       ),
       _tutor(
         uid: 'francis',
         name: 'Francis Lim',
+        headline: 'Programming fundamentals, made practical',
         subjects: const <String>['Computer Science'],
+        languages: const <String>['English', 'Filipino'],
+        teachingMode: 'both',
+        experienceYears: 5,
+        experience: const <TutorExperience>[
+          TutorExperience(
+            role: 'Full-stack Developer',
+            organization: 'Tech Studio',
+            startYear: 2021,
+            endYear: 2026,
+            description: 'Teaches programming fundamentals with real examples.',
+          ),
+        ],
+        education: const <TutorEducation>[
+          TutorEducation(school: 'Mapua', degree: 'BS Computer Engineering', year: 2020),
+        ],
+        certifications: const <TutorCertification>[],
         rate: 550,
         rating: 4.5,
         reviews: 58,
         bio: 'Full-stack developer teaching programming fundamentals.',
-        room: 'meet.tutortap.app/francis-cs-2014',
         now: now,
       ),
     ];
@@ -162,29 +269,39 @@ class SeedService {
   TutorProfile _tutor({
     required String uid,
     required String name,
+    required String headline,
     required List<String> subjects,
+    required List<String> languages,
+    required String teachingMode,
+    required int experienceYears,
+    required List<TutorExperience> experience,
+    required List<TutorEducation> education,
+    required List<TutorCertification> certifications,
     required double rate,
     required double rating,
     required int reviews,
     required String bio,
-    required String room,
     required DateTime now,
   }) {
     return TutorProfile(
       uid: uid,
       displayName: name,
-      subjects: subjects,
+      headline: headline,
+      bio: bio,
+      subjectsList: subjects,
+      languages: languages,
+      teachingMode: teachingMode,
+      experienceYears: experienceYears,
+      experience: experience,
+      education: education,
+      certifications: certifications,
       hourlyRate: rate,
       rating: rating,
       ratingCount: reviews,
-      bio: bio,
-      meetingRoomInfo: room,
       verificationStatus: VerificationStatus.verified,
       avatarUrl:
           'https://res.cloudinary.com/demo/image/upload/w_200,h_200,c_fill,g_face,q_auto,f_auto/tutortap/avatars/$uid.png',
-      credentialUrls: const <String>[
-        'https://res.cloudinary.com/demo/image/upload/tutortap/credentials/sample-id.png',
-      ],
+      updatedAt: now,
       slots: _sampleSlots(uid, now),
     );
   }

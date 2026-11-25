@@ -10,6 +10,7 @@ import '../models/exam.dart';
 import '../models/flashcard_deck.dart';
 import '../models/mock_exam.dart';
 import '../models/time_slot.dart';
+import '../models/tutor_private_profile.dart';
 import '../models/tutor_profile.dart';
 
 class SlotAlreadyTakenException implements Exception {
@@ -273,7 +274,25 @@ class FirestoreService {
   }
 
   Future<void> saveTutorProfile(TutorProfile profile) {
-    return tutors
+    final Map<String, dynamic> data = <String, dynamic>{
+      ...profile.toMap(),
+      'meetingRoomInfo': FieldValue.delete(),
+      'credentialUrls': FieldValue.delete(),
+    };
+    return tutors.doc(profile.uid).set(data, SetOptions(merge: true));
+  }
+
+  Future<TutorPrivateProfile?> fetchTutorPrivate(String uid) async {
+    final DocumentSnapshot<Map<String, dynamic>> snapshot =
+        await _firestore.collection('tutor_private').doc(uid).get();
+    final Map<String, dynamic>? data = snapshot.data();
+    if (!snapshot.exists || data == null) return null;
+    return TutorPrivateProfile.fromMap(<String, dynamic>{...data, 'uid': uid});
+  }
+
+  Future<void> saveTutorPrivateProfile(TutorPrivateProfile profile) {
+    return _firestore
+        .collection('tutor_private')
         .doc(profile.uid)
         .set(profile.toMap(), SetOptions(merge: true));
   }
@@ -580,11 +599,11 @@ class FirestoreService {
       'uid': profile.uid,
       'displayName': profile.displayName,
       'recipientEmail': recipientEmail,
-      'subjects': profile.subjects,
+      'subjects': profile.subjectsList,
+      'languages': profile.languages,
+      'headline': profile.headline,
       'hourlyRate': profile.hourlyRate,
       'bio': profile.bio,
-      'meetingRoomInfo': profile.meetingRoomInfo,
-      'credentialUrls': profile.credentialUrls,
       'status': 'pending',
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));

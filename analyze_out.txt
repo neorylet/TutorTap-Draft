@@ -1,0 +1,18 @@
+﻿Analyzing tutortap_1...                                         
+
+  error - The named parameter 'fallback' isn't defined. Try correcting the name to an existing named parameter's name, or defining a named parameter with the name 'fallback' - lib\models\tutor_profile.dart:131:53 - undefined_named_parameter
+  error - The method 'dateTimeFromNullable' isn't defined for the type 'TutorProfile'. Try correcting the name to the name of an existing method, or defining a method named 'dateTimeFromNullable' - lib\models\tutor_profile.dart:156:18 - undefined_method
+   info - Unnecessary use of multiple underscores. Try using '_' - lib\screens\tutor_profile.dart:251:38 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores. Try using '_' - lib\screens\tutor_profile.dart:253:38 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores. Try using '_' - lib\screens\tutor_profile.dart:253:42 - unnecessary_underscores
+  error - The getter 'size' isn't defined for the type 'PlatformFile'. Try importing the library that defines 'size', correcting the name to the name of an existing getter, or defining a getter or field named 'size' - lib\screens\tutor_profile_verification.dart:205:28 - undefined_getter
+   info - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check - lib\screens\tutor_profile_verification.dart:295:13 - use_build_context_synchronously
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement - lib\screens\tutor_profile_verification.dart:582:13 - deprecated_member_use
+
+flutter : 8 issues found. (ran in 16.1s)
+At line:1 char:1
++ flutter analyze --no-pub 2>&1 | Out-File -FilePath analyze_out.txt -E ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (8 issues found. (ran in 16.1s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
