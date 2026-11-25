@@ -10,7 +10,7 @@ class StatusBadge extends StatelessWidget {
   factory StatusBadge.fromStatus(String status) {
     final String normalized = status.toLowerCase();
     final StatusTone tone = switch (normalized) {
-      'confirmed' || 'verified' || 'online' || 'submitted' || 'graded' => StatusTone.positive,
+      'confirmed' || 'completed' || 'verified' || 'online' || 'submitted' || 'graded' => StatusTone.positive,
       'pending' || 'assigned' || 'new' || 'simulated' => StatusTone.warning,
       'cancelled' || 'rejected' => StatusTone.negative,
       _ => StatusTone.neutral,

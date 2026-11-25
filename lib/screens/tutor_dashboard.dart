@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../models/app_user.dart';
 import '../models/booking.dart';
 import '../providers/auth_provider.dart';
+import '../providers/booking_provider.dart';
 import '../routing/app_routes.dart';
 import '../services/firestore_service.dart';
 import '../widgets/pill_button.dart';
@@ -24,6 +25,7 @@ class _TutorDashboardScreenState extends State<TutorDashboardScreen> {
   StreamSubscription<List<Booking>>? _subscription;
   List<Booking> _bookings = <Booking>[];
   bool _initialized = false;
+  final Set<String> _completing = <String>{};
 
   @override
   void didChangeDependencies() {
@@ -47,22 +49,61 @@ class _TutorDashboardScreenState extends State<TutorDashboardScreen> {
     super.dispose();
   }
 
+  Future<void> _markComplete(Booking booking) async {
+    if (_completing.contains(booking.id)) return;
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Mark session complete?'),
+        content: const Text(
+          'Earnings are recorded immediately and this cannot be undone.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Mark complete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _completing.add(booking.id));
+    final BookingProvider provider = context.read<BookingProvider>();
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final bool ok = await provider.completeBooking(booking);
+    if (!mounted) return;
+    setState(() => _completing.remove(booking.id));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Session marked complete.'
+              : provider.error ?? 'Could not complete session.',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppUser? user = context.select<AuthProvider, AppUser?>(
       (AuthProvider provider) => provider.currentUser,
     );
-    final List<Booking> active = _bookings
-        .where(
-          (Booking booking) =>
-              booking.status == BookingStatus.confirmed ||
-              booking.status == BookingStatus.pending,
-        )
-        .toList(growable: false);
-    final double payout = _bookings.fold<double>(
-      0,
-      (double sum, Booking booking) => sum + booking.tutorPayout,
-    );
+    final List<Booking> upcoming = _bookings
+        .where((Booking b) => b.isUpcoming)
+        .toList(growable: false)
+      ..sort((a, b) => a.slotStart.compareTo(b.slotStart));
+    final List<Booking> past = _bookings
+        .where((Booking b) => !b.isUpcoming)
+        .toList(growable: false)
+      ..sort((a, b) => b.slotStart.compareTo(a.slotStart));
+    final double earned = _bookings
+        .where((Booking b) => b.isCompleted)
+        .fold<double>(0, (double sum, Booking b) => sum + b.tutorPayout);
 
     return ScreenScaffold(
       title: 'Hi, ${user?.displayName.split(' ').first ?? 'tutor'}',
@@ -77,15 +118,15 @@ class _TutorDashboardScreenState extends State<TutorDashboardScreen> {
                 Expanded(
                   child: _StatCard(
                     label: 'Active sessions',
-                    value: '${active.length}',
+                    value: '${upcoming.length}',
                     icon: Icons.calendar_month_outlined,
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: _StatCard(
-                    label: 'Tutor payout',
-                    value: '₱${payout.toStringAsFixed(0)}',
+                    label: 'Earned',
+                    value: '₱${earned.toStringAsFixed(0)}',
                     icon: Icons.account_balance_wallet_outlined,
                   ),
                 ),
@@ -105,23 +146,56 @@ class _TutorDashboardScreenState extends State<TutorDashboardScreen> {
                 ),
                 ActionChip(
                   label: const Text('Students'),
-                  onPressed: () => Navigator.of(context)
-                      .pushNamed(AppRoutes.tutorStudents),
+                  onPressed: () =>
+                      Navigator.of(context).pushNamed(AppRoutes.tutorStudents),
                 ),
                 ActionChip(
                   label: const Text('Earnings'),
-                  onPressed: () => Navigator.of(context)
-                      .pushNamed(AppRoutes.tutorEarnings),
+                  onPressed: () =>
+                      Navigator.of(context).pushNamed(AppRoutes.tutorEarnings),
                 ),
               ],
             ),
             const SizedBox(height: 18),
             Text('Upcoming', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 10),
-            if (_bookings.isEmpty)
-              const EmptyHint(message: 'No bookings yet.')
+            if (upcoming.isEmpty)
+              const EmptyHint(message: 'No upcoming sessions.')
             else
-              ...active.take(5).map(
+              ...upcoming.take(5).map(
+                    (Booking booking) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: SectionCard(
+                        child: Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text(booking.studentName),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    DateFormat('EEE d MMM · h:mm a')
+                                        .format(booking.slotStart),
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            StatusBadge.fromStatus(booking.status.value),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+            const SizedBox(height: 12),
+            Text('Past', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 10),
+            if (past.isEmpty)
+              const EmptyHint(message: 'No past sessions.')
+            else
+              ...past.map(
                 (Booking booking) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: SectionCard(
@@ -141,7 +215,19 @@ class _TutorDashboardScreenState extends State<TutorDashboardScreen> {
                             ],
                           ),
                         ),
-                        StatusBadge.fromStatus(booking.status.value),
+                        if (booking.canBeCompleted)
+                          TextButton(
+                            onPressed: _completing.contains(booking.id)
+                                ? null
+                                : () => _markComplete(booking),
+                            child: Text(
+                              _completing.contains(booking.id)
+                                  ? 'Saving…'
+                                  : 'Mark complete',
+                            ),
+                          )
+                        else
+                          StatusBadge.fromStatus(booking.status.value),
                       ],
                     ),
                   ),
@@ -151,8 +237,8 @@ class _TutorDashboardScreenState extends State<TutorDashboardScreen> {
             PillButton(
               label: 'Open classroom',
               variant: PillButtonVariant.secondary,
-              onPressed: () => Navigator.of(context)
-                  .pushNamed(AppRoutes.tutorClassroom),
+              onPressed: () =>
+                  Navigator.of(context).pushNamed(AppRoutes.tutorClassroom),
             ),
           ],
         ),

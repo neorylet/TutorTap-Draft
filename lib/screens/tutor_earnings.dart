@@ -46,25 +46,28 @@ class _TutorEarningsScreenState extends State<TutorEarningsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Booking> paid = _bookings
+    final List<Booking> completed = _bookings
+        .where((Booking b) => b.isCompleted)
+        .toList(growable: false)
+      ..sort((a, b) => b.slotStart.compareTo(a.slotStart));
+    final double earned = completed.fold<double>(
+      0,
+      (double sum, Booking b) => sum + b.tutorPayout,
+    );
+    final double commission = completed.fold<double>(
+      0,
+      (double sum, Booking b) => sum + b.commissionAmount,
+    );
+    final double upcomingPayout = _bookings
         .where(
-          (Booking booking) =>
-              booking.status == BookingStatus.confirmed ||
-              booking.status == BookingStatus.completed,
+          (Booking b) =>
+              b.status == BookingStatus.confirmed && b.slotEnd.isAfter(DateTime.now()),
         )
-        .toList(growable: false);
-    final double payout = paid.fold<double>(
-      0,
-      (double sum, Booking booking) => sum + booking.tutorPayout,
-    );
-    final double commission = paid.fold<double>(
-      0,
-      (double sum, Booking booking) => sum + booking.commissionAmount,
-    );
+        .fold<double>(0, (double sum, Booking b) => sum + b.tutorPayout);
 
     return ScreenScaffold(
       title: 'Earnings',
-      subtitle: 'Commission is calculated on every confirmed session.',
+      subtitle: 'Paid sessions, after platform commission.',
       showBack: false,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -72,7 +75,10 @@ class _TutorEarningsScreenState extends State<TutorEarningsScreen> {
           Row(
             children: <Widget>[
               Expanded(
-                child: _StatCard(label: 'Tutor payout', value: '₱${payout.toStringAsFixed(2)}'),
+                child: _StatCard(
+                  label: 'Earned',
+                  value: '₱${earned.toStringAsFixed(2)}',
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -83,16 +89,25 @@ class _TutorEarningsScreenState extends State<TutorEarningsScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          Text(
+            'Upcoming payout ₱${upcomingPayout.toStringAsFixed(2)}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
           const SizedBox(height: 18),
-          Text('Recent sessions', style: Theme.of(context).textTheme.titleLarge),
+          Text('Completed sessions',
+              style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 10),
           Expanded(
-            child: paid.isEmpty
-                ? const EmptyHint(message: 'No confirmed earnings yet.')
+            child: completed.isEmpty
+                ? const EmptyHint(
+                    message:
+                        'No completed sessions yet. Sessions appear here once you mark them complete.',
+                  )
                 : ListView.builder(
-                    itemCount: paid.length,
+                    itemCount: completed.length,
                     itemBuilder: (BuildContext context, int index) {
-                      final Booking booking = paid[index];
+                      final Booking booking = completed[index];
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: SectionCard(
@@ -107,7 +122,8 @@ class _TutorEarningsScreenState extends State<TutorEarningsScreen> {
                                     Text(
                                       DateFormat('d MMM · h:mm a')
                                           .format(booking.slotStart),
-                                      style: Theme.of(context).textTheme.bodySmall,
+                                      style:
+                                          Theme.of(context).textTheme.bodySmall,
                                     ),
                                   ],
                                 ),
@@ -115,7 +131,9 @@ class _TutorEarningsScreenState extends State<TutorEarningsScreen> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: <Widget>[
-                                  Text('₱${booking.tutorPayout.toStringAsFixed(2)}'),
+                                  Text(
+                                    '₱${booking.tutorPayout.toStringAsFixed(2)}',
+                                  ),
                                   const SizedBox(height: 3),
                                   StatusBadge.fromStatus(booking.status.value),
                                 ],

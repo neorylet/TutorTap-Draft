@@ -522,6 +522,13 @@ class FirestoreService {
     });
   }
 
+  Future<void> completeBooking(Booking booking) {
+    return bookings.doc(booking.id).update(<String, dynamic>{
+      'status': BookingStatus.completed.value,
+      'completedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> rescheduleBooking({
     required Booking booking,
     required String newSlotId,

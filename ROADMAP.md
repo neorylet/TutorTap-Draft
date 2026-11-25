@@ -1,6 +1,6 @@
 # TutorTap roadmap
 
-_Last updated 25 Nov 2026 · `main` @ a8c4416_
+_Last updated 25 Nov 2026 · `main` @ e2f4cca_
 
 ## Shipped
 
@@ -14,23 +14,25 @@ _Last updated 25 Nov 2026 · `main` @ a8c4416_
 
 ## Phase 2 — Session lifecycle (in progress)
 
-- [ ] Tutor completes an ended session; earnings count completed bookings only
+Completion is in; decline and the student Past split follow in the next slice.
+
+- [x] Tutor completes an ended session; earnings count completed bookings only
 - [ ] Tutor declines or cancels a booking; the slot frees itself
 - [ ] Student list splits Upcoming / Past; no-show state
 
-## Phase 3 — Tutor profile experience (next)
+## Phase 3 — Tutor profile experience (done)
 
-The tutor profile is five fields (name, subjects, rate, bio, room link) and the page
-shows initials, a hardcoded "Verified" badge, and a public room link. Avatar upload is
-a placeholder bypass that stores `https://example.com/...` URLs. `tutors/{uid}` is
-world-readable, so private fields in that document are public today.
+Committed in `e2f4cca`. Public profile carries headline, bio, languages, teaching
+mode, experience, education and certifications; `meetingRoomInfo` and credential
+URLs live in `tutor_private/{uid}`; avatar upload is real; the badge reads
+`verificationStatus` instead of being hardcoded.
 
-- [ ] P0 split public and private tutor data (`tutor_private/{uid}`); rules: owner plus admin only; frozen-field whitelist on update; validation for rate and text lengths
-- [ ] P1 real avatar upload to Cloudinary with square crop, rendered on both cards and the profile page
-- [ ] P2 content model: headline, about, languages, experience, education, certifications, teaching mode
-- [ ] P3 owner editor: stepped form, completion meter, live preview, per-field validation
-- [ ] P4 public page: header, trust strip, about, experience, languages, availability, policies, sticky book CTA
-- [ ] Verified badge shown only when `verificationStatus == verified`
+- [x] P0 split public and private tutor data; owner-only private document; validated profile writes
+- [x] P1 real avatar upload to Cloudinary, rendered on cards and the profile page
+- [x] P2 content model: headline, bio, languages, experience, education, certifications, teaching mode
+- [x] P3 owner editor: completion meter, chip inputs, repeatable entries, validation
+- [x] P4 public page: header, about, experience, languages, availability, policies, sticky CTA
+- [x] Badge shown only when `verificationStatus == verified`, labelled Reviewed
 
 ## Phase 4 — Messaging
 
@@ -60,7 +62,7 @@ world-readable, so private fields in that document are public today.
 
 ## Decisions pending
 
-- Which tutor fields are public versus private (surname, exact location, room link)
+- Which tutor fields are public versus private (surname, exact location) - room link resolved: private
 - Hourly sessions only, or lesson packages as well
 - Blaze billing: unlocks Cloud Functions and server-side grading
 - Identity-document retention window, when Phase 7 starts

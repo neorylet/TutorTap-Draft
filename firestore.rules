@@ -418,6 +418,13 @@ service cloud.firestore {
            request.resource.data.status == 'confirmed')
         );
 
+      allow update: if isSignedIn() &&
+        resource.data.tutorId == request.auth.uid &&
+        resource.data.status == 'confirmed' &&
+        request.resource.data.status == 'completed' &&
+        affectedKeys().hasOnly(['status', 'completedAt']) &&
+        request.time >= resource.data.slotEnd;
+
       allow delete: if false;
     }
 

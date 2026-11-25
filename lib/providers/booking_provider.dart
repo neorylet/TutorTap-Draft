@@ -208,6 +208,19 @@ class BookingProvider extends ChangeNotifier {
     _notify();
   }
 
+  Future<bool> completeBooking(Booking booking) async {
+    _error = null;
+    try {
+      await _firestoreService.completeBooking(booking);
+      _notify();
+      return true;
+    } catch (error) {
+      _error = error.toString();
+      _notify();
+      return false;
+    }
+  }
+
   Future<void> rescheduleBooking({
     required Booking booking,
     required String newSlotId,

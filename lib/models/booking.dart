@@ -120,6 +120,10 @@ class Booking {
   final DateTime? completedAt;
 
   bool get isPast => slotEnd.isBefore(DateTime.now());
+  bool get isCompleted => status == BookingStatus.completed;
+  bool get isCancelled => status == BookingStatus.cancelled;
+  bool get isUpcoming => !isPast && !isCompleted && !isCancelled;
+  bool get canBeCompleted => status == BookingStatus.confirmed && isPast;
 
   Map<String, dynamic> toMap() => <String, dynamic>{
     'id': id,
