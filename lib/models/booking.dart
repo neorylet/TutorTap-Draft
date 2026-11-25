@@ -64,6 +64,7 @@ class Booking {
     required this.paymentMode,
     required this.createdAt,
     this.courseId,
+    this.completedAt,
   });
 
   factory Booking.fromMap(Map<String, dynamic> map) {
@@ -94,6 +95,7 @@ class Booking {
       paymentMode: stringFrom(map['paymentMode'], AppConstants.paymentMode),
       createdAt: dateTimeFromFirestore(map['createdAt']) ?? DateTime.now(),
       courseId: map['courseId'] == null ? null : stringFrom(map['courseId']),
+      completedAt: dateTimeFromFirestore(map['completedAt']),
     );
   }
 
@@ -115,6 +117,9 @@ class Booking {
   final String paymentMode;
   final DateTime createdAt;
   final String? courseId;
+  final DateTime? completedAt;
+
+  bool get isPast => slotEnd.isBefore(DateTime.now());
 
   Map<String, dynamic> toMap() => <String, dynamic>{
     'id': id,
@@ -135,6 +140,7 @@ class Booking {
     'paymentMode': paymentMode,
     'createdAt': dateTimeToFirestore(createdAt),
     'courseId': courseId,
+    'completedAt': dateTimeToFirestore(completedAt),
   };
 
   Booking copyWith({
@@ -156,6 +162,7 @@ class Booking {
     String? paymentMode,
     DateTime? createdAt,
     Object? courseId = kUnset,
+    Object? completedAt = kUnset,
   }) {
     return Booking(
       id: id ?? this.id,
@@ -176,6 +183,9 @@ class Booking {
       paymentMode: paymentMode ?? this.paymentMode,
       createdAt: createdAt ?? this.createdAt,
       courseId: courseId == kUnset ? this.courseId : courseId as String?,
+      completedAt: completedAt == kUnset
+          ? this.completedAt
+          : dateTimeFromFirestore(completedAt),
     );
   }
 }

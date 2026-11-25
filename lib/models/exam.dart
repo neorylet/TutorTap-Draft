@@ -97,7 +97,7 @@ class Exam {
     String? title,
     int? timeLimitMin,
     Object? dueDate = kUnset,
-    String? moduleId,
+    Object? moduleId = kUnset,
     List<Question>? questions,
     List<ExamAttempt>? attempts,
   }) {
@@ -109,7 +109,7 @@ class Exam {
       dueDate: dueDate == kUnset
           ? this.dueDate
           : dateTimeFromFirestore(dueDate),
-      moduleId: moduleId ?? this.moduleId,
+      moduleId: moduleId == kUnset ? this.moduleId : moduleId as String?,
       questions: questions ?? this.questions,
       attempts: attempts ?? this.attempts,
     );
