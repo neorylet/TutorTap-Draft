@@ -51,8 +51,9 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
 
   Future<void> _load(String uid) async {
     try {
-      final TutorProfile? tutor =
-          await context.read<FirestoreService>().fetchTutor(uid);
+      final TutorProfile? tutor = await context
+          .read<FirestoreService>()
+          .fetchTutor(uid);
       if (!mounted) return;
       if (tutor != null) {
         context.read<BookingProvider>()
@@ -81,12 +82,14 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
       );
     }
 
-    final List<TimeSlot> slots = context.select<BookingProvider, List<TimeSlot>>(
-      (BookingProvider p) => p.slots,
+    final List<TimeSlot> slots = context
+        .select<BookingProvider, List<TimeSlot>>(
+          (BookingProvider p) => p.slots,
+        );
+    final TimeSlot? selectedSlot = context.select<BookingProvider, TimeSlot?>(
+      (BookingProvider provider) => provider.selectedSlot,
     );
-    final String? selectedSlotId = context.select<BookingProvider, String?>(
-      (BookingProvider p) => p.selectedSlot?.id,
-    );
+    final String? selectedSlotId = selectedSlot?.id;
     final String? error = context.select<BookingProvider, String?>(
       (BookingProvider p) => p.error,
     );
@@ -94,7 +97,9 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
     final String? uid = context
         .select<AuthProvider, AppUser?>((AuthProvider p) => p.currentUser)
         ?.uid;
-    final bool hasOpenSlots = slots.any((s) => !s.isBooked);
+    final bool hasOpenSlots = slots.any(
+      (TimeSlot s) => !s.isBooked && s.start.isAfter(now),
+    );
 
     return ScreenScaffold(
       title: tutor.displayName,
@@ -116,8 +121,10 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text('About',
-                            style: Theme.of(context).textTheme.titleMedium),
+                        Text(
+                          'About',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                         const SizedBox(height: 8),
                         Text(
                           tutor.bio.isNotEmpty
@@ -146,8 +153,10 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Text('Languages',
-                              style: Theme.of(context).textTheme.titleMedium),
+                          Text(
+                            'Languages',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
                           const SizedBox(height: 8),
                           Wrap(
                             spacing: 6,
@@ -166,8 +175,10 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
                     ),
                   ],
                   const SizedBox(height: 20),
-                  Text('Availability',
-                      style: Theme.of(context).textTheme.titleLarge),
+                  Text(
+                    'Availability',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                   const SizedBox(height: 10),
                   if (slots.isEmpty)
                     const EmptyHint(message: 'No open slots right now.')
@@ -178,8 +189,8 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
                     Text(
                       error,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 14),
@@ -187,8 +198,10 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text('Policies',
-                            style: Theme.of(context).textTheme.titleMedium),
+                        Text(
+                          'Policies',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                         const SizedBox(height: 8),
                         Text(
                           'Cancellation frees the slot. You can reschedule once per booking.',
@@ -220,7 +233,13 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
                       child: PillButton(
                         label: 'Continue to checkout',
                         onPressed:
-                            selectedSlotId == null ? null : _goToCheckout,
+                            selectedSlot == null ||
+                                selectedSlot.isBooked ||
+                                !selectedSlot.start.isAfter(now)
+                            ? null
+                            : () =>
+                                  Navigator.of(context)
+                                      .pushNamed(AppRoutes.checkout),
                       ),
                     ),
                   ],
@@ -240,8 +259,10 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
           radius: 32,
           backgroundColor: AppColors.mint,
           child: (tutor.avatarUrl ?? '').isEmpty
-              ? Text(tutor.initials,
-                  style: const TextStyle(color: AppColors.forest))
+              ? Text(
+                  tutor.initials,
+                  style: const TextStyle(color: AppColors.forest),
+                )
               : ClipOval(
                   child: CachedNetworkImage(
                     imageUrl: CloudinaryConfig.avatarUrl(tutor.avatarUrl!),
@@ -270,14 +291,18 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
                   if (tutor.verificationStatus == VerificationStatus.verified)
                     const Padding(
                       padding: EdgeInsets.only(left: 6),
-                      child:
-                          StatusBadge(label: 'Reviewed', tone: StatusTone.positive),
+                      child: StatusBadge(
+                        label: 'Reviewed',
+                        tone: StatusTone.positive,
+                      ),
                     ),
                 ],
               ),
               if (tutor.headline.isNotEmpty)
-                Text(tutor.headline,
-                    style: Theme.of(context).textTheme.bodySmall),
+                Text(
+                  tutor.headline,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               const SizedBox(height: 4),
               Text(
                 '★ ${tutor.rating.toStringAsFixed(1)} (${tutor.ratingCount})',
@@ -288,10 +313,12 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
                 spacing: 4,
                 runSpacing: 4,
                 children: tutor.subjectsList
-                    .map((s) => Chip(
-                          label: Text(s),
-                          visualDensity: VisualDensity.compact,
-                        ))
+                    .map(
+                      (s) => Chip(
+                        label: Text(s),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    )
                     .toList(),
               ),
               const SizedBox(height: 4),
@@ -311,16 +338,19 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
       return const StatusBadge(label: 'Under review', tone: StatusTone.warning);
     }
     if (tutor.verificationStatus == VerificationStatus.rejected) {
-      return const StatusBadge(label: 'Not approved', tone: StatusTone.negative);
+      return const StatusBadge(
+        label: 'Not approved',
+        tone: StatusTone.negative,
+      );
     }
     return const SizedBox.shrink();
   }
 
   String _modeLabel(String mode) => switch (mode) {
-        'in-person' => 'In-person',
-        'both' => 'Online & in-person',
-        _ => 'Online',
-      };
+    'in-person' => 'In-person',
+    'both' => 'Online & in-person',
+    _ => 'Online',
+  };
 
   Widget _experienceSection(BuildContext context, TutorProfile tutor) {
     return SectionCard(
@@ -329,13 +359,15 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
         children: <Widget>[
           Text('Experience', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          ...tutor.experience.map((e) => _entry(
-                context,
-                title: e.role,
-                subtitle: e.organization,
-                trailing: '${e.startYear}-${e.endYear}',
-                description: e.description,
-              )),
+          ...tutor.experience.map(
+            (e) => _entry(
+              context,
+              title: e.role,
+              subtitle: e.organization,
+              trailing: '${e.startYear}-${e.endYear}',
+              description: e.description,
+            ),
+          ),
         ],
       ),
     );
@@ -348,13 +380,15 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
         children: <Widget>[
           Text('Education', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          ...tutor.education.map((e) => _entry(
-                context,
-                title: e.school,
-                subtitle: e.degree,
-                trailing: e.year > 0 ? '${e.year}' : '',
-                description: '',
-              )),
+          ...tutor.education.map(
+            (e) => _entry(
+              context,
+              title: e.school,
+              subtitle: e.degree,
+              trailing: e.year > 0 ? '${e.year}' : '',
+              description: '',
+            ),
+          ),
         ],
       ),
     );
@@ -365,15 +399,20 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('Certifications', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Certifications',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
-          ...tutor.certifications.map((c) => _entry(
-                context,
-                title: c.name,
-                subtitle: c.issuer,
-                trailing: c.year > 0 ? '${c.year}' : '',
-                description: '',
-              )),
+          ...tutor.certifications.map(
+            (c) => _entry(
+              context,
+              title: c.name,
+              subtitle: c.issuer,
+              trailing: c.year > 0 ? '${c.year}' : '',
+              description: '',
+            ),
+          ),
         ],
       ),
     );
@@ -394,8 +433,11 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
           Row(
             children: <Widget>[
               Expanded(
-                  child: Text(title,
-                      style: Theme.of(context).textTheme.bodyMedium)),
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
               if (trailing.isNotEmpty)
                 Text(trailing, style: Theme.of(context).textTheme.bodySmall),
             ],
@@ -405,8 +447,10 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
           if (description.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: Text(description,
-                  style: Theme.of(context).textTheme.bodySmall),
+              child: Text(
+                description,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ),
         ],
       ),
@@ -429,56 +473,44 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
     }
     final List<Widget> widgets = <Widget>[];
     for (final MapEntry<String, List<TimeSlot>> entry in groups.entries) {
-      widgets.add(Padding(
-        padding: const EdgeInsets.only(bottom: 6, top: 4),
-        child: Text(entry.key, style: Theme.of(context).textTheme.labelLarge),
-      ));
-      widgets.add(Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: entry.value.map((TimeSlot slot) {
-          final SlotCellState state;
-          if (slot.isBooked) {
-            state = SlotCellState.taken;
-          } else if (uid != null && slot.isLockedBy(uid, now)) {
-            state = SlotCellState.selected;
-          } else if (slot.isLocked(now)) {
-            state = SlotCellState.locked;
-          } else if (slot.id == selectedSlotId) {
-            state = SlotCellState.selected;
-          } else {
-            state = SlotCellState.available;
-          }
-          final String label = DateFormat('h:mm a').format(slot.start);
-          return SizedBox(
-            width: 100,
-            child: SlotCell(
-              label: label,
-              state: state,
-              holdLabel:
-                  uid != null && slot.isLockedBy(uid, now) ? 'Held for you' : null,
-              onTap: () => _selectSlot(slot),
-            ),
-          );
-        }).toList(),
-      ));
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6, top: 4),
+          child: Text(entry.key, style: Theme.of(context).textTheme.labelLarge),
+        ),
+      );
+      widgets.add(
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: entry.value.map((TimeSlot slot) {
+            final bool isPast = !slot.start.isAfter(now);
+            final SlotCellState state;
+            if (slot.isBooked || isPast) {
+              state = SlotCellState.taken;
+            } else if (slot.id == selectedSlotId) {
+              state = SlotCellState.selected;
+            } else {
+              state = SlotCellState.available;
+            }
+            final String label = DateFormat('h:mm a').format(slot.start);
+            return SizedBox(
+              width: 100,
+              child: SlotCell(
+                label: label,
+                state: state,
+                onTap: () => _selectSlot(slot),
+              ),
+            );
+          }).toList(),
+        ),
+      );
       widgets.add(const SizedBox(height: 8));
     }
     return widgets;
   }
 
-  Future<void> _selectSlot(TimeSlot slot) async {
-    final String? uid = context.read<AuthProvider>().currentUser?.uid;
-    if (uid == null) return;
-    final BookingProvider booking = context.read<BookingProvider>();
-    booking.selectSlot(slot);
-    final bool locked = await booking.lockSelectedSlot(studentUid: uid);
-    if (locked && mounted) {
-      Navigator.of(context).pushNamed(AppRoutes.checkout);
-    }
-  }
-
-  Future<void> _goToCheckout() async {
-    Navigator.of(context).pushNamed(AppRoutes.checkout);
+  void _selectSlot(TimeSlot slot) {
+    context.read<BookingProvider>().selectSlot(slot);
   }
 }

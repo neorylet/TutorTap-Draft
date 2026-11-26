@@ -56,10 +56,65 @@ service cloud.firestore {
       return slotEqualExceptBookedBy(a, b) && a.bookedBy == b.bookedBy;
     }
 
+    function sameSlotCore(a, b) {
+      return a != null && b != null &&
+        a.id == b.id &&
+        a.start == b.start &&
+        a.end == b.end &&
+        a.courseId == b.courseId;
+    }
+
+    function slotUnchanged(a, b) {
+      return sameSlotCore(a, b) &&
+        a.bookedBy == b.bookedBy &&
+        a.lockedBy == b.lockedBy &&
+        a.lockExpiresAt == b.lockExpiresAt;
+    }
+
+    // Student takes or extends their own hold on a free slot.
+    function slotHoldByCaller(a, b, uid) {
+      return sameSlotCore(a, b) &&
+        a.bookedBy == null &&
+        (a.lockedBy == null || a.lockedBy == uid) &&
+        b.lockedBy == uid &&
+        b.lockExpiresAt != null;
+    }
+
+    // Student drops their own hold.
+    function slotReleaseByCaller(a, b, uid) {
+      return sameSlotCore(a, b) &&
+        a.bookedBy == b.bookedBy &&
+        a.lockedBy == uid &&
+        b.lockedBy == null &&
+        b.lockExpiresAt == null;
+    }
+
+    // Checkout: hold becomes a booking, lock cleared in the same write.
+    function slotClaimAfterHold(a, b, uid) {
+      return sameSlotCore(a, b) &&
+        a.bookedBy == null && b.bookedBy == uid &&
+        a.lockedBy == uid &&
+        b.lockedBy == null && b.lockExpiresAt == null;
+    }
+
+    // Checkout straight after a selection, no hold involved.
+    function slotClaimWithoutHold(a, b, uid) {
+      return sameSlotCore(a, b) &&
+        a.bookedBy == null && b.bookedBy == uid &&
+        a.lockedBy == null && a.lockExpiresAt == null &&
+        b.lockedBy == null && b.lockExpiresAt == null;
+    }
+
+    // Cancellation: booking released, any leftover lock cleared.
+    function slotReleaseOnCancel(a, b, uid) {
+      return sameSlotCore(a, b) &&
+        a.bookedBy == uid && b.bookedBy == null &&
+        b.lockedBy == null && b.lockExpiresAt == null;
+    }
+
     function isLockFieldOnly(slotBefore, slotAfter, uid) {
-      return slotEqual(slotBefore, slotAfter) ||
-        (isBookedByTransition(slotBefore, slotAfter, uid) &&
-          slotEqualExceptBookedBy(slotBefore, slotAfter));
+      return slotBefore == slotAfter ||
+        isBookedByTransition(slotBefore, slotAfter, uid);
     }
 
     function slotAtLockFieldOnly(slotsBefore, slotsAfter, i, uid) {
@@ -342,6 +397,41 @@ service cloud.firestore {
         ) <= 1;
     }
 
+    // Student slot writes: exactly one element changes, either a claim
+    // (bookedBy null -> caller) or a release (bookedBy caller -> null).
+    // Implemented with list set-difference so the rule costs ~20 expressions
+    // instead of a 64-index literal expansion, which exceeded the per-request
+    // expression budget and surfaced as "Missing or insufficient permissions".
+
+    function slotCoreSame(before, after) {
+      return before.id == after.id &&
+        before.start == after.start &&
+        before.end == after.end;
+    }
+
+    function claimPair(before, after, uid) {
+      return slotCoreSame(before, after) &&
+        before.bookedBy == null && after.bookedBy == uid &&
+        after.lockedBy == before.lockedBy &&
+        after.lockExpiresAt == before.lockExpiresAt;
+    }
+
+    function releasePair(before, after, uid) {
+      return slotCoreSame(before, after) &&
+        before.bookedBy == uid && after.bookedBy == null &&
+        after.lockedBy == before.lockedBy &&
+        after.lockExpiresAt == before.lockExpiresAt;
+    }
+
+    function slotsClaimOrRelease(b, a, uid) {
+      return a.size() == b.size() && b.size() <= 64 && (
+        (a.removeAll(b).size() == 1 && b.removeAll(a).size() == 1 &&
+         claimPair(b.removeAll(a)[0], a.removeAll(b)[0], uid)) ||
+        (a.removeAll(b).size() == 1 && b.removeAll(a).size() == 1 &&
+         releasePair(b.removeAll(a)[0], a.removeAll(b)[0], uid))
+      );
+    }
+
     // -------- USERS --------
     // Owner creates with role in ('student','tutor') only; owner cannot
     // mutate role on update. Admin-SDK changes role via Cloud Functions.
@@ -378,9 +468,9 @@ service cloud.firestore {
       allow update: if isSignedIn() &&
         !isOwner(uid) &&
         affectedKeys().hasOnly(['slots']) &&
-        slotsExactlyOneLockTransition(resource.data.slots,
-                                       request.resource.data.slots,
-                                       request.auth.uid);
+        slotsClaimOrRelease(resource.data.slots,
+                            request.resource.data.slots,
+                            request.auth.uid);
 
       allow delete: if false;
     }
@@ -395,8 +485,8 @@ service cloud.firestore {
     // -------- BOOKINGS --------
     // Read: parties only
     // Create: student creates own booking, paymentMode must be 'simulated', status 'confirmed'
-    // Update (student): only status→'cancelled' OR (slotStart/slotEnd/status→'confirmed') for reschedule
-    // Update (tutor): no rule yet — accept/decline UI doesn't exist. Add in Phase 2.
+    // Update (student): cancel before slotEnd with reason/note, or reschedule (slotStart/slotEnd/status→confirmed)
+    // Update (tutor): cancel before slotEnd with reason/note, or mark confirmed session complete after slotEnd
     // Delete: disabled
     match /bookings/{bookingId} {
       allow read: if isSignedIn() && (
@@ -412,8 +502,18 @@ service cloud.firestore {
       allow update: if isSignedIn() &&
         resource.data.studentId == request.auth.uid &&
         (
-          (affectedKeys().hasOnly(['status']) &&
-           request.resource.data.status == 'cancelled') ||
+          (resource.data.status in ['pending', 'confirmed'] &&
+           request.time < resource.data.slotEnd &&
+           affectedKeys().hasOnly(['status', 'cancelledBy',
+                                   'cancellationReason', 'cancellationNote',
+                                   'cancelledAt']) &&
+           request.resource.data.status == 'cancelled' &&
+           request.resource.data.cancelledBy == 'student' &&
+           request.resource.data.cancellationReason in
+             ['schedule_conflict', 'booked_by_mistake', 'found_another_tutor',
+              'price', 'other'] &&
+           request.resource.data.cancellationNote is string &&
+           request.resource.data.cancellationNote.size() <= 200) ||
           (affectedKeys().hasOnly(['slotStart', 'slotEnd', 'status']) &&
            request.resource.data.status == 'confirmed')
         );
@@ -424,6 +524,20 @@ service cloud.firestore {
         request.resource.data.status == 'completed' &&
         affectedKeys().hasOnly(['status', 'completedAt']) &&
         request.time >= resource.data.slotEnd;
+
+      allow update: if isSignedIn() &&
+        resource.data.tutorId == request.auth.uid &&
+        resource.data.status in ['pending', 'confirmed'] &&
+        request.time < resource.data.slotEnd &&
+        affectedKeys().hasOnly(['status', 'cancelledBy',
+                                'cancellationReason', 'cancellationNote',
+                                'cancelledAt']) &&
+        request.resource.data.status == 'cancelled' &&
+        request.resource.data.cancelledBy == 'tutor' &&
+        request.resource.data.cancellationReason in
+          ['emergency', 'schedule_conflict', 'not_my_subject', 'other'] &&
+        request.resource.data.cancellationNote is string &&
+        request.resource.data.cancellationNote.size() <= 200;
 
       allow delete: if false;
     }
@@ -436,11 +550,19 @@ service cloud.firestore {
     match /verification_requests/{uid} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid) &&
+        request.resource.data.uid == uid &&
         request.resource.data.status == 'pending' &&
-        request.resource.data.keys().hasOnly(['status', 'idType', 'createdAt']);
+        request.resource.data.keys().hasOnly([
+          'uid', 'displayName', 'recipientEmail', 'subjects', 'languages',
+          'headline', 'hourlyRate', 'bio', 'status', 'updatedAt'
+        ]);
       allow update: if isOwner(uid) &&
+        request.resource.data.uid == uid &&
         request.resource.data.status == 'pending' &&
-        affectedKeys().hasOnly(['status', 'idType']);
+        request.resource.data.keys().hasOnly([
+          'uid', 'displayName', 'recipientEmail', 'subjects', 'languages',
+          'headline', 'hourlyRate', 'bio', 'status', 'updatedAt'
+        ]);
       allow delete: if false;
     }
 
@@ -465,30 +587,6 @@ service cloud.firestore {
         resource.data.tutorId == request.auth.uid;
       allow delete: if isSignedIn() &&
         resource.data.tutorId == request.auth.uid;
-    }
-
-    // -------- ASSIGNMENTS --------
-    // Unchanged from current repo rules (already field-whitelisted).
-    match /assignments/{assignmentId} {
-      allow read: if isSignedIn() && (
-        resource.data.tutorId == request.auth.uid ||
-        resource.data.studentId == request.auth.uid
-      );
-      allow create: if isSignedIn() &&
-        request.resource.data.tutorId == request.auth.uid;
-      allow update: if isSignedIn() && (
-        (
-          resource.data.tutorId == request.auth.uid &&
-          affectedKeys().hasOnly(['grade', 'feedback', 'status'])
-        ) ||
-        (
-          resource.data.studentId == request.auth.uid &&
-          affectedKeys().hasOnly([
-            'submissionUrl', 'submissionText', 'submittedAt', 'status'
-          ])
-        )
-      );
-      allow delete: if false;
     }
 
     // -------- EXAMS --------
