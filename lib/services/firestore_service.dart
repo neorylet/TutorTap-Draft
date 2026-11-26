@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../core/constants/app_constants.dart';
 import '../core/utils/firestore_value.dart';
@@ -36,6 +38,16 @@ class FirestoreService {
     : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
+
+  String _dumpSlots(List<TimeSlot> slots) => slots
+      .map(
+        (TimeSlot s) =>
+            '{id:${s.id} start:${s.start.toUtc().toIso8601String()} '
+            'end:${s.end.toUtc().toIso8601String()} lockedBy:${s.lockedBy} '
+            'exp:${s.lockExpiresAt?.toUtc().toIso8601String()} '
+            'bookedBy:${s.bookedBy} courseId:${s.courseId}}',
+      )
+      .join(' || ');
 
   CollectionReference<Map<String, dynamic>> get users =>
       _firestore.collection('users');
@@ -283,8 +295,10 @@ class FirestoreService {
   }
 
   Future<TutorPrivateProfile?> fetchTutorPrivate(String uid) async {
-    final DocumentSnapshot<Map<String, dynamic>> snapshot =
-        await _firestore.collection('tutor_private').doc(uid).get();
+    final DocumentSnapshot<Map<String, dynamic>> snapshot = await _firestore
+        .collection('tutor_private')
+        .doc(uid)
+        .get();
     final Map<String, dynamic>? data = snapshot.data();
     if (!snapshot.exists || data == null) return null;
     return TutorPrivateProfile.fromMap(<String, dynamic>{...data, 'uid': uid});
@@ -357,47 +371,7 @@ class FirestoreService {
     return mockExams.doc(mockId).set(exam.toMap());
   }
 
-  Future<void> lockSlot({
-    required String tutorId,
-    required String slotId,
-    required String studentUid,
-  }) async {
-    final DocumentReference<Map<String, dynamic>> tutorRef = tutors.doc(
-      tutorId,
-    );
-    await _firestore.runTransaction<void>((Transaction transaction) async {
-      final DocumentSnapshot<Map<String, dynamic>> snapshot = await transaction
-          .get(tutorRef);
-      final Map<String, dynamic>? data = snapshot.data();
-      if (!snapshot.exists || data == null) {
-        throw const SlotAlreadyTakenException('Tutor is no longer available.');
-      }
-      final TutorProfile profile = TutorProfile.fromMap(<String, dynamic>{
-        ...data,
-        'uid': tutorId,
-      });
-      final int index = profile.slots.indexWhere(
-        (TimeSlot slot) => slot.id == slotId,
-      );
-      if (index < 0) {
-        throw const SlotAlreadyTakenException('That slot no longer exists.');
-      }
 
-      final DateTime now = DateTime.now();
-      final TimeSlot slot = profile.slots[index];
-      if (!slot.isAvailable(now) && !slot.isLockedBy(studentUid, now)) {
-        throw const SlotAlreadyTakenException();
-      }
-
-      final List<TimeSlot> updatedSlots = List<TimeSlot>.from(profile.slots);
-      updatedSlots[index] = slot.lock(studentUid, now);
-      transaction.update(tutorRef, <String, dynamic>{
-        'slots': updatedSlots
-            .map((TimeSlot item) => item.toMap())
-            .toList(growable: false),
-      });
-    });
-  }
 
   Future<Booking> confirmSimulatedBooking({
     required String studentId,
@@ -441,51 +415,78 @@ class FirestoreService {
       paymentMode: AppConstants.paymentMode,
       createdAt: now,
     );
+    debugPrint(
+      '[BOOKING_RECON] booking keys=${booking.toMap().keys.join(",")}',
+    );
 
-    await _firestore.runTransaction<void>((Transaction transaction) async {
-      final DocumentSnapshot<Map<String, dynamic>> tutorSnapshot =
-          await transaction.get(tutorRef);
-      final Map<String, dynamic>? tutorData = tutorSnapshot.data();
-      if (!tutorSnapshot.exists || tutorData == null) {
-        throw const SlotAlreadyTakenException('Tutor is no longer available.');
-      }
-      final TutorProfile profile = TutorProfile.fromMap(<String, dynamic>{
-        ...tutorData,
-        'uid': tutorId,
-      });
-      final int index = profile.slots.indexWhere(
-        (TimeSlot slot) => slot.id == slotId,
-      );
-      if (index < 0) {
-        throw const SlotAlreadyTakenException('That slot no longer exists.');
-      }
-      final TimeSlot slot = profile.slots[index];
-      if (!slot.isAvailable(now) && !slot.isLockedBy(studentId, now)) {
-        throw const SlotAlreadyTakenException();
-      }
+    debugPrint(
+      '[BOOKING_RECON] confirmSimulatedBooking start tutor=$tutorId slot=$slotId '
+      'studentId=$studentId authUid=${FirebaseAuth.instance.currentUser?.uid}',
+    );
+    try {
+      await _firestore.runTransaction<void>((Transaction transaction) async {
+        final DocumentSnapshot<Map<String, dynamic>> tutorSnapshot =
+            await transaction.get(tutorRef);
+        final Map<String, dynamic>? tutorData = tutorSnapshot.data();
+        if (!tutorSnapshot.exists || tutorData == null) {
+          throw const SlotAlreadyTakenException(
+            'Tutor is no longer available.',
+          );
+        }
+        final TutorProfile profile = TutorProfile.fromMap(<String, dynamic>{
+          ...tutorData,
+          'uid': tutorId,
+        });
+        debugPrint(
+          '[BOOKING_RECON] server slots BEFORE = ${_dumpSlots(profile.slots)}',
+        );
+        final int index = profile.slots.indexWhere(
+          (TimeSlot slot) => slot.id == slotId,
+        );
+        if (index < 0) {
+          throw const SlotAlreadyTakenException('That slot no longer exists.');
+        }
+        final TimeSlot slot = profile.slots[index];
+        if (slot.bookedBy != null || !slot.start.isAfter(now)) {
+          throw const SlotAlreadyTakenException('That slot was just taken.');
+        }
 
-      final List<TimeSlot> updatedSlots = List<TimeSlot>.from(profile.slots);
-      updatedSlots[index] = slot.copyWith(
-        lockedBy: null,
-        lockExpiresAt: null,
-        bookedBy: studentId,
-      );
-      transaction.update(tutorRef, <String, dynamic>{
-        'slots': updatedSlots
-            .map((TimeSlot item) => item.toMap())
-            .toList(growable: false),
+        final List<TimeSlot> updatedSlots = List<TimeSlot>.from(profile.slots);
+        updatedSlots[index] = slot.copyWith(bookedBy: studentId);
+        debugPrint(
+          '[BOOKING_RECON] client slots AFTER  = ${_dumpSlots(updatedSlots)}',
+        );
+        transaction.update(tutorRef, <String, dynamic>{
+          'slots': updatedSlots
+              .map((TimeSlot item) => item.toMap())
+              .toList(growable: false),
+        });
+        transaction.set(bookingRef, booking.toMap());
       });
-      transaction.set(bookingRef, booking.toMap());
-    });
+    } on Object catch (e, st) {
+      debugPrint(
+        '[BOOKING_RECON] confirmSimulatedBooking FAILED type=${e.runtimeType} '
+        'firebase=${e is FirebaseException ? "${e.plugin}/${e.code}/${e.message}" : "n/a"}',
+      );
+      debugPrint('[BOOKING_RECON] stack=$st');
+      rethrow;
+    }
 
     return booking;
   }
 
-  Future<void> cancelBooking(Booking booking) async {
-    final DocumentReference<Map<String, dynamic>> bookingRef =
-        bookings.doc(booking.id);
-    final DocumentReference<Map<String, dynamic>> tutorRef =
-        tutors.doc(booking.tutorId);
+  Future<void> cancelBooking(
+    Booking booking, {
+    required String cancelledBy,
+    required String reason,
+    String note = '',
+  }) async {
+    final DocumentReference<Map<String, dynamic>> bookingRef = bookings.doc(
+      booking.id,
+    );
+    final DocumentReference<Map<String, dynamic>> tutorRef = tutors.doc(
+      booking.tutorId,
+    );
 
     await _firestore.runTransaction<void>((Transaction transaction) async {
       final DocumentSnapshot<Map<String, dynamic>> tutorSnapshot =
@@ -503,10 +504,13 @@ class FirestoreService {
               slot.start.isAtSameMomentAs(booking.slotStart),
         );
         if (index >= 0) {
-          final List<TimeSlot> updatedSlots =
-              List<TimeSlot>.from(profile.slots);
+          final List<TimeSlot> updatedSlots = List<TimeSlot>.from(
+            profile.slots,
+          );
           updatedSlots[index] = updatedSlots[index].copyWith(
             bookedBy: null,
+            lockedBy: null,
+            lockExpiresAt: null,
           );
           transaction.update(tutorRef, <String, dynamic>{
             'slots': updatedSlots
@@ -518,6 +522,10 @@ class FirestoreService {
 
       transaction.update(bookingRef, <String, dynamic>{
         'status': BookingStatus.cancelled.value,
+        'cancelledBy': cancelledBy,
+        'cancellationReason': reason,
+        'cancellationNote': note,
+        'cancelledAt': FieldValue.serverTimestamp(),
       });
     });
   }
@@ -534,6 +542,8 @@ class FirestoreService {
     required String newSlotId,
     required DateTime newStart,
     required DateTime newEnd,
+    required String reason,
+    required String note,
   }) async {
     final DocumentReference<Map<String, dynamic>> bookingRef = bookings.doc(
       booking.id,
@@ -562,9 +572,8 @@ class FirestoreService {
       }
       final TimeSlot newSlot = updatedSlots[newIndex];
       final DateTime now = DateTime.now();
-      if (!newSlot.isAvailable(now) &&
-          !newSlot.isLockedBy(booking.studentId, now)) {
-        throw const SlotAlreadyTakenException();
+      if (newSlot.bookedBy != null || !newSlot.start.isAfter(now)) {
+        throw const SlotAlreadyTakenException('That slot was just taken.');
       }
 
       final int oldIndex = updatedSlots.indexWhere(
@@ -594,6 +603,10 @@ class FirestoreService {
         'slotStart': dateTimeToFirestore(newStart),
         'slotEnd': dateTimeToFirestore(newEnd),
         'status': BookingStatus.confirmed.value,
+        'rescheduleReason': reason,
+        'rescheduleNote': note,
+        'rescheduledAt': FieldValue.serverTimestamp(),
+        'previousSlotStart': Timestamp.fromDate(booking.slotStart),
       });
     });
   }

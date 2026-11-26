@@ -1,4 +1,5 @@
 import '../core/constants/app_constants.dart';
+import '../core/constants/cancellation_reasons.dart';
 import '../core/utils/firestore_value.dart';
 
 enum BookingStatus { pending, confirmed, completed, cancelled }
@@ -65,6 +66,14 @@ class Booking {
     required this.createdAt,
     this.courseId,
     this.completedAt,
+    this.cancelledBy = '',
+    this.cancellationReason = '',
+    this.cancellationNote = '',
+    this.cancelledAt,
+    this.rescheduleReason,
+    this.rescheduleNote,
+    this.rescheduledAt,
+    this.previousSlotStart,
   });
 
   factory Booking.fromMap(Map<String, dynamic> map) {
@@ -96,6 +105,18 @@ class Booking {
       createdAt: dateTimeFromFirestore(map['createdAt']) ?? DateTime.now(),
       courseId: map['courseId'] == null ? null : stringFrom(map['courseId']),
       completedAt: dateTimeFromFirestore(map['completedAt']),
+      cancelledBy: stringFrom(map['cancelledBy']),
+      cancellationReason: stringFrom(map['cancellationReason']),
+      cancellationNote: stringFrom(map['cancellationNote']),
+      cancelledAt: dateTimeFromFirestore(map['cancelledAt']),
+      rescheduleReason: map['rescheduleReason'] == null
+          ? null
+          : stringFrom(map['rescheduleReason']),
+      rescheduleNote: map['rescheduleNote'] == null
+          ? null
+          : stringFrom(map['rescheduleNote']),
+      rescheduledAt: dateTimeFromFirestore(map['rescheduledAt']),
+      previousSlotStart: dateTimeFromFirestore(map['previousSlotStart']),
     );
   }
 
@@ -118,12 +139,28 @@ class Booking {
   final DateTime createdAt;
   final String? courseId;
   final DateTime? completedAt;
+  final String cancelledBy;
+  final String cancellationReason;
+  final String cancellationNote;
+  final DateTime? cancelledAt;
+  final String? rescheduleReason;
+  final String? rescheduleNote;
+  final DateTime? rescheduledAt;
+  final DateTime? previousSlotStart;
 
   bool get isPast => slotEnd.isBefore(DateTime.now());
   bool get isCompleted => status == BookingStatus.completed;
   bool get isCancelled => status == BookingStatus.cancelled;
   bool get isUpcoming => !isPast && !isCompleted && !isCancelled;
   bool get canBeCompleted => status == BookingStatus.confirmed && isPast;
+
+  String get cancellationSummary {
+    if (!isCancelled) return '';
+    final String who = cancelledBy == 'tutor' ? 'tutor' : 'student';
+    final String reason = CancellationReasons.labelFor(cancellationReason);
+    if (cancellationReason.isEmpty) return 'Cancelled by $who';
+    return 'Cancelled by $who · $reason';
+  }
 
   Map<String, dynamic> toMap() => <String, dynamic>{
     'id': id,
@@ -145,6 +182,16 @@ class Booking {
     'createdAt': dateTimeToFirestore(createdAt),
     'courseId': courseId,
     'completedAt': dateTimeToFirestore(completedAt),
+    'cancelledBy': cancelledBy,
+    'cancellationReason': cancellationReason,
+    'cancellationNote': cancellationNote,
+    'cancelledAt': dateTimeToFirestore(cancelledAt),
+    if (rescheduleReason != null) 'rescheduleReason': rescheduleReason,
+    if (rescheduleNote != null) 'rescheduleNote': rescheduleNote,
+    if (rescheduledAt != null)
+      'rescheduledAt': dateTimeToFirestore(rescheduledAt),
+    if (previousSlotStart != null)
+      'previousSlotStart': dateTimeToFirestore(previousSlotStart),
   };
 
   Booking copyWith({
@@ -167,6 +214,14 @@ class Booking {
     DateTime? createdAt,
     Object? courseId = kUnset,
     Object? completedAt = kUnset,
+    String? cancelledBy,
+    String? cancellationReason,
+    String? cancellationNote,
+    Object? cancelledAt = kUnset,
+    Object? rescheduleReason = kUnset,
+    Object? rescheduleNote = kUnset,
+    Object? rescheduledAt = kUnset,
+    Object? previousSlotStart = kUnset,
   }) {
     return Booking(
       id: id ?? this.id,
@@ -190,6 +245,24 @@ class Booking {
       completedAt: completedAt == kUnset
           ? this.completedAt
           : dateTimeFromFirestore(completedAt),
+      cancelledBy: cancelledBy ?? this.cancelledBy,
+      cancellationReason: cancellationReason ?? this.cancellationReason,
+      cancellationNote: cancellationNote ?? this.cancellationNote,
+      cancelledAt: cancelledAt == kUnset
+          ? this.cancelledAt
+          : dateTimeFromFirestore(cancelledAt),
+      rescheduleReason: rescheduleReason == kUnset
+          ? this.rescheduleReason
+          : rescheduleReason as String?,
+      rescheduleNote: rescheduleNote == kUnset
+          ? this.rescheduleNote
+          : rescheduleNote as String?,
+      rescheduledAt: rescheduledAt == kUnset
+          ? this.rescheduledAt
+          : dateTimeFromFirestore(rescheduledAt),
+      previousSlotStart: previousSlotStart == kUnset
+          ? this.previousSlotStart
+          : dateTimeFromFirestore(previousSlotStart),
     );
   }
 }

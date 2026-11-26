@@ -198,6 +198,8 @@ class BookingProvider extends ChangeNotifier {
     required String newSlotId,
     required DateTime newStart,
     required DateTime newEnd,
+    required String reason,
+    required String note,
   }) async {
     _error = null;
     bool ok = false;
@@ -207,6 +209,8 @@ class BookingProvider extends ChangeNotifier {
         newSlotId: newSlotId,
         newStart: newStart,
         newEnd: newEnd,
+        reason: reason,
+        note: note,
       );
       ok = true;
     } on SlotAlreadyTakenException catch (error) {
