@@ -536,8 +536,19 @@ service cloud.firestore {
               'price', 'other'] &&
            request.resource.data.cancellationNote is string &&
            request.resource.data.cancellationNote.size() <= 200) ||
-          (affectedKeys().hasOnly(['slotStart', 'slotEnd', 'status']) &&
-           request.resource.data.status == 'confirmed')
+           (affectedKeys().hasOnly([
+               'slotStart', 'slotEnd', 'status',
+               'rescheduleReason', 'rescheduleNote', 'rescheduledAt',
+               'previousSlotStart'
+             ]) &&
+             request.resource.data.status == 'confirmed' &&
+             resource.data.status == 'confirmed' &&
+             request.resource.data.rescheduleReason in [
+               'schedule_conflict', 'need_different_time', 'tutor_availability',
+               'personal', 'other'
+             ] &&
+             request.resource.data.previousSlotStart == resource.data.slotStart &&
+             request.resource.data.rescheduledAt == request.time)
         );
 
       allow update: if isSignedIn() &&
