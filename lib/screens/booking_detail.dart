@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../core/constants/cancellation_reasons.dart';
 import '../models/booking.dart';
 import '../providers/auth_provider.dart';
 import '../providers/booking_provider.dart';
 import '../routing/app_routes.dart';
+import '../widgets/cancel_booking_sheet.dart';
 import '../widgets/meeting_link_box.dart';
 import '../widgets/pill_button.dart';
 import '../widgets/status_badge.dart';
@@ -20,6 +22,7 @@ class BookingDetailScreen extends StatefulWidget {
 
 class _BookingDetailScreenState extends State<BookingDetailScreen> {
   bool _completing = false;
+  bool _cancelling = false;
 
   Future<void> _markComplete(Booking booking) async {
     if (_completing) return;
@@ -62,6 +65,37 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     if (ok) navigator.pop();
   }
 
+  Future<void> _cancel(Booking booking, bool isTutor) async {
+    if (_cancelling) return;
+    final ({String reason, String note})? result = await showCancelBookingSheet(
+      context,
+      isTutor: isTutor,
+    );
+    if (result == null || !mounted) return;
+    setState(() => _cancelling = true);
+    final BookingProvider provider = context.read<BookingProvider>();
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final NavigatorState navigator = Navigator.of(context);
+    final bool ok = await provider.cancelBooking(
+      booking,
+      cancelledBy: isTutor ? 'tutor' : 'student',
+      reason: result.reason,
+      note: result.note,
+    );
+    if (!mounted) return;
+    setState(() => _cancelling = false);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Booking cancelled.'
+              : provider.error ?? 'Could not cancel booking.',
+        ),
+      ),
+    );
+    if (ok) navigator.pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final Booking? booking =
@@ -78,8 +112,9 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     );
     final bool isTutor = uid == booking.tutorId;
     final bool canModify =
-        booking.status == BookingStatus.confirmed ||
-        booking.status == BookingStatus.pending;
+        (booking.status == BookingStatus.confirmed ||
+            booking.status == BookingStatus.pending) &&
+        !booking.isPast;
 
     return ScreenScaffold(
       title: booking.tutorName,
@@ -109,7 +144,8 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                     '${DateFormat('h:mm a').format(booking.slotStart)} – ${DateFormat('h:mm a').format(booking.slotEnd)}',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                  if (booking.isCompleted && booking.completedAt != null) ...<Widget>[
+                  if (booking.isCompleted &&
+                      booking.completedAt != null) ...<Widget>[
                     const SizedBox(height: 8),
                     Text(
                       'Completed on ${DateFormat('d MMM, h:mm a').format(booking.completedAt!)}',
@@ -126,28 +162,67 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            SectionCard(
-              child: Column(
-                children: <Widget>[
-                  _Row(
-                    label: 'Total charged',
-                    value: '₱${booking.totalCharged.toStringAsFixed(2)}',
-                  ),
-                  const SizedBox(height: 6),
-                  _Row(
-                    label: 'Commission',
-                    value: '₱${booking.commissionAmount.toStringAsFixed(2)}',
-                  ),
-                  const SizedBox(height: 6),
-                  _Row(
-                    label: 'Tutor payout',
-                    value: '₱${booking.tutorPayout.toStringAsFixed(2)}',
-                  ),
-                  const SizedBox(height: 6),
-                  _Row(label: 'Payment mode', value: booking.paymentMode),
-                ],
+            if (booking.isCancelled)
+              SectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      booking.cancelledBy == (isTutor ? 'tutor' : 'student')
+                          ? 'Cancelled by you'
+                          : 'Cancelled by ${isTutor ? booking.studentName : booking.tutorName}',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    if (booking.cancellationReason.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 4),
+                      Text(
+                        CancellationReasons.labelFor(
+                          booking.cancellationReason,
+                        ),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                    if (booking.cancellationNote.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 4),
+                      Text(
+                        booking.cancellationNote,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                    if (booking.cancelledAt != null) ...<Widget>[
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormat('d MMM, h:mm a')
+                            .format(booking.cancelledAt!),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
+                ),
+              )
+            else
+              SectionCard(
+                child: Column(
+                  children: <Widget>[
+                    _Row(
+                      label: 'Total charged',
+                      value: '₱${booking.totalCharged.toStringAsFixed(2)}',
+                    ),
+                    const SizedBox(height: 6),
+                    _Row(
+                      label: 'Commission',
+                      value: '₱${booking.commissionAmount.toStringAsFixed(2)}',
+                    ),
+                    const SizedBox(height: 6),
+                    _Row(
+                      label: 'Tutor payout',
+                      value: '₱${booking.tutorPayout.toStringAsFixed(2)}',
+                    ),
+                    const SizedBox(height: 6),
+                    _Row(label: 'Payment mode', value: booking.paymentMode),
+                  ],
+                ),
               ),
-            ),
             const SizedBox(height: 16),
             if (isTutor && booking.canBeCompleted) ...<Widget>[
               PillButton(
@@ -156,29 +231,37 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               ),
               const SizedBox(height: 8),
             ],
-            if (!booking.isCompleted) ...<Widget>[
+            if (!booking.isCompleted && !booking.isCancelled) ...<Widget>[
               PillButton(
                 label: 'Reschedule',
                 variant: PillButtonVariant.secondary,
                 onPressed: !canModify
                     ? null
-                    : () => Navigator.of(context).pushNamed(
+                    : () async {
+                        final NavigatorState navigator =
+                            Navigator.of(context);
+                        final ScaffoldMessengerState messenger =
+                            ScaffoldMessenger.of(context);
+                        final dynamic rescheduled = await navigator.pushNamed(
                           AppRoutes.reschedule,
                           arguments: booking,
-                        ),
+                        );
+                        if (!mounted || rescheduled != true) return;
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('Booking rescheduled.'),
+                          ),
+                        );
+                        navigator.pop();
+                      },
               ),
               const SizedBox(height: 8),
               PillButton(
-                label: 'Cancel booking',
+                label: _cancelling ? 'Cancelling…' : 'Cancel booking',
                 variant: PillButtonVariant.text,
-                onPressed: !canModify
+                onPressed: !canModify || _cancelling
                     ? null
-                    : () async {
-                        await context
-                            .read<BookingProvider>()
-                            .cancelBooking(booking);
-                        if (context.mounted) Navigator.of(context).pop();
-                      },
+                    : () => _cancel(booking, isTutor),
               ),
             ],
           ],

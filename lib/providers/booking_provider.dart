@@ -9,15 +9,13 @@ import '../models/tutor_profile.dart';
 import '../services/firestore_service.dart';
 
 /// Slot grid widgets should use `context.select<BookingProvider, List<TimeSlot>>((p) => p.slots)`;
-/// the checkout total uses `Selector<BookingProvider, CommissionBreakdown>` and the
-/// countdown uses a tiny leaf reading only `remainingSeconds`.
+/// the checkout total uses `Selector<BookingProvider, CommissionBreakdown>`.
 class BookingProvider extends ChangeNotifier {
   BookingProvider(this._firestoreService);
 
   final FirestoreService _firestoreService;
   StreamSubscription<List<TimeSlot>>? _slotsSubscription;
   StreamSubscription<List<Booking>>? _bookingsSubscription;
-  Timer? _lockTicker;
 
   TutorProfile? _selectedTutor;
   TimeSlot? _selectedSlot;
@@ -25,8 +23,6 @@ class BookingProvider extends ChangeNotifier {
   List<Booking> _bookings = <Booking>[];
   DateTime _selectedDate = DateTime.now();
   double _commissionRate = AppConstants.defaultCommissionRate;
-  int _remainingSeconds = 0;
-  bool _isLocking = false;
   bool _isCheckingOut = false;
   String? _error;
   Booking? _lastCompletedBooking;
@@ -38,10 +34,7 @@ class BookingProvider extends ChangeNotifier {
   List<Booking> get bookings => _bookings;
   DateTime get selectedDate => _selectedDate;
   double get commissionRate => _commissionRate;
-  int get remainingSeconds => _remainingSeconds;
-  bool get isLocking => _isLocking;
   bool get isCheckingOut => _isCheckingOut;
-  bool get hasActiveLock => _remainingSeconds > 0;
   String? get error => _error;
   Booking? get lastCompletedBooking => _lastCompletedBooking;
 
@@ -118,41 +111,6 @@ class BookingProvider extends ChangeNotifier {
         });
   }
 
-  Future<bool> lockSelectedSlot({required String studentUid}) async {
-    final TutorProfile? tutor = _selectedTutor;
-    final TimeSlot? slot = _selectedSlot;
-    if (tutor == null || slot == null) {
-      _error = 'Choose a tutor and a slot first.';
-      _notify();
-      return false;
-    }
-
-    _isLocking = true;
-    _error = null;
-    _notify();
-    try {
-      await _firestoreService.lockSlot(
-        tutorId: tutor.uid,
-        slotId: slot.id,
-        studentUid: studentUid,
-      );
-      _selectedSlot = slot.lock(studentUid, DateTime.now());
-      _lockExpiresAt = DateTime.now().add(AppConstants.slotLockDuration);
-      _remainingSeconds = AppConstants.slotLockDuration.inSeconds;
-      _startLockTicker();
-      return true;
-    } on SlotAlreadyTakenException catch (error) {
-      _error = error.message;
-      return false;
-    } catch (error) {
-      _error = error.toString();
-      return false;
-    } finally {
-      _isLocking = false;
-      _notify();
-    }
-  }
-
   Future<Booking?> checkout({
     required String studentUid,
     required String studentName,
@@ -184,13 +142,14 @@ class BookingProvider extends ChangeNotifier {
         commissionRate: _commissionRate,
       );
       _lastCompletedBooking = booking;
-      _clearLock();
       return booking;
     } on SlotAlreadyTakenException catch (error) {
       _error = error.message;
+      debugPrint('[BOOKING_RECON] provider ${error.runtimeType} $error');
       return null;
     } catch (error) {
       _error = error.toString();
+      debugPrint('[BOOKING_RECON] provider ${error.runtimeType} $error');
       return null;
     } finally {
       _isCheckingOut = false;
@@ -198,14 +157,27 @@ class BookingProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> cancelBooking(Booking booking) async {
+  Future<bool> cancelBooking(
+    Booking booking, {
+    required String cancelledBy,
+    required String reason,
+    String note = '',
+  }) async {
     _error = null;
     try {
-      await _firestoreService.cancelBooking(booking);
+      await _firestoreService.cancelBooking(
+        booking,
+        cancelledBy: cancelledBy,
+        reason: reason,
+        note: note,
+      );
+      _notify();
+      return true;
     } catch (error) {
       _error = error.toString();
+      _notify();
+      return false;
     }
-    _notify();
   }
 
   Future<bool> completeBooking(Booking booking) async {
@@ -221,13 +193,14 @@ class BookingProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> rescheduleBooking({
+  Future<bool> rescheduleBooking({
     required Booking booking,
     required String newSlotId,
     required DateTime newStart,
     required DateTime newEnd,
   }) async {
     _error = null;
+    bool ok = false;
     try {
       await _firestoreService.rescheduleBooking(
         booking: booking,
@@ -235,12 +208,14 @@ class BookingProvider extends ChangeNotifier {
         newStart: newStart,
         newEnd: newEnd,
       );
+      ok = true;
     } on SlotAlreadyTakenException catch (error) {
       _error = error.message;
     } catch (error) {
       _error = error.toString();
     }
     _notify();
+    return ok;
   }
 
   void clearError() {
@@ -252,36 +227,6 @@ class BookingProvider extends ChangeNotifier {
   void clearSelection() {
     _selectedTutor = null;
     _selectedSlot = null;
-    _clearLock();
-  }
-
-  DateTime? _lockExpiresAt;
-
-  void _startLockTicker() {
-    _lockTicker?.cancel();
-    _lockTicker = Timer.periodic(const Duration(seconds: 1), (_) {
-      final DateTime? expiry = _lockExpiresAt;
-      if (expiry == null) {
-        _lockTicker?.cancel();
-        return;
-      }
-      final int seconds = expiry.difference(DateTime.now()).inSeconds;
-      final int next = seconds > 0 ? seconds : 0;
-      if (next == _remainingSeconds) return;
-      _remainingSeconds = next;
-      if (next == 0) {
-        _lockTicker?.cancel();
-        _lockExpiresAt = null;
-      }
-      _notify();
-    });
-  }
-
-  void _clearLock() {
-    _lockTicker?.cancel();
-    _lockTicker = null;
-    _lockExpiresAt = null;
-    _remainingSeconds = 0;
   }
 
   void _notify() {
@@ -292,7 +237,6 @@ class BookingProvider extends ChangeNotifier {
   void dispose() {
     _slotsSubscription?.cancel();
     _bookingsSubscription?.cancel();
-    _clearLock();
     _disposed = true;
     super.dispose();
   }

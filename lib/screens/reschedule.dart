@@ -17,6 +17,7 @@ class RescheduleScreen extends StatefulWidget {
 
 class _RescheduleScreenState extends State<RescheduleScreen> {
   bool _initialized = false;
+  bool _isSubmitting = false;
 
   @override
   void didChangeDependencies() {
@@ -40,12 +41,14 @@ class _RescheduleScreenState extends State<RescheduleScreen> {
         body: EmptyHint(message: 'No booking to reschedule.'),
       );
     }
-    final List<TimeSlot> slots = context.select<BookingProvider, List<TimeSlot>>(
-      (BookingProvider provider) => provider.slots,
-    );
+    final List<TimeSlot> slots = context
+        .select<BookingProvider, List<TimeSlot>>(
+          (BookingProvider provider) => provider.slots,
+        );
     final DateTime now = DateTime.now();
     final List<TimeSlot> available = slots.where((TimeSlot slot) {
-      return slot.isAvailable(now) &&
+      return slot.start.isAfter(now) &&
+          slot.bookedBy == null &&
           !slot.start.isAtSameMomentAs(booking.slotStart);
     }).toList(growable: false);
 
@@ -58,30 +61,42 @@ class _RescheduleScreenState extends State<RescheduleScreen> {
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: available.map((TimeSlot slot) {
-                  return SizedBox(
-                    width: 112,
-                    child: SlotCell(
-                      label: DateFormat('EEE d MMM\nh:mm a').format(slot.start),
-                      state: SlotCellState.available,
-                      onTap: () => _reschedule(booking, slot),
-                    ),
-                  );
-                }).toList(growable: false),
+                children: available
+                    .map((TimeSlot slot) {
+                      return SizedBox(
+                        width: 112,
+                        child: SlotCell(
+                          label: DateFormat('EEE d MMM\nh:mm a')
+                              .format(slot.start),
+                          state: SlotCellState.available,
+                          onTap: () => _reschedule(booking, slot),
+                        ),
+                      );
+                    })
+                    .toList(growable: false),
               ),
             ),
     );
   }
 
   Future<void> _reschedule(Booking booking, TimeSlot slot) async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
     final BookingProvider bookingProvider = context.read<BookingProvider>();
-    await bookingProvider.rescheduleBooking(
+    final bool ok = await bookingProvider.rescheduleBooking(
       booking: booking,
       newSlotId: slot.id,
       newStart: slot.start,
       newEnd: slot.end,
     );
     if (!mounted) return;
-    Navigator.of(context).pop();
+    if (ok) {
+      Navigator.of(context).pop(true);
+      return;
+    }
+    setState(() => _isSubmitting = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(bookingProvider.error ?? 'Could not reschedule.')),
+    );
   }
 }
