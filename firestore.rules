@@ -432,6 +432,23 @@ service cloud.firestore {
       );
     }
 
+    // A reschedule releases the old slot and claims the new one in a single
+    // write, so exactly two elements change. removeAll preserves array order in
+    // each list, and the slots array never reorders, so the two filtered lists
+    // are index-aligned: index 0 of each is the same slot. Pair them
+    // positionally, trying both claim-then-release and release-then-claim.
+    function slotPairSwap(br, ar, uid) {
+      return (claimPair(br[0], ar[0], uid) && releasePair(br[1], ar[1], uid)) ||
+             (releasePair(br[0], ar[0], uid) && claimPair(br[1], ar[1], uid));
+    }
+
+    function slotsClaimAndRelease(before, after, uid) {
+      return before.size() == after.size() &&
+        before.size() <= 64 &&
+        after.removeAll(before).size() == 2 &&
+        slotPairSwap(before.removeAll(after), after.removeAll(before), uid);
+    }
+
     // -------- USERS --------
     // Owner creates with role in ('student','tutor') only; owner cannot
     // mutate role on update. Admin-SDK changes role via Cloud Functions.
@@ -468,9 +485,14 @@ service cloud.firestore {
       allow update: if isSignedIn() &&
         !isOwner(uid) &&
         affectedKeys().hasOnly(['slots']) &&
-        slotsClaimOrRelease(resource.data.slots,
-                            request.resource.data.slots,
-                            request.auth.uid);
+        (
+          slotsClaimOrRelease(resource.data.slots,
+                              request.resource.data.slots,
+                              request.auth.uid) ||
+          slotsClaimAndRelease(resource.data.slots,
+                               request.resource.data.slots,
+                               request.auth.uid)
+        );
 
       allow delete: if false;
     }
