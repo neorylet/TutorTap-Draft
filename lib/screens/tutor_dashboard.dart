@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/app_user.dart';
-import '../core/constants/cancellation_reasons.dart';
 import '../models/booking.dart';
 import '../providers/auth_provider.dart';
 import '../providers/booking_provider.dart';
@@ -252,9 +251,7 @@ class _TutorDashboardScreenState extends State<TutorDashboardScreen> {
                             )
                           else if (booking.isCancelled)
                             Text(
-                              CancellationReasons.labelFor(
-                                booking.cancellationReason,
-                              ),
+                              booking.cancellationSummary,
                               style: Theme.of(context).textTheme.bodySmall,
                             )
                           else
