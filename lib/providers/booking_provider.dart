@@ -78,37 +78,64 @@ class BookingProvider extends ChangeNotifier {
 
   void watchTutorSlots(String tutorId) {
     _slotsSubscription?.cancel();
-    _slotsSubscription = _firestoreService.watchSlots(tutorId).listen((slots) {
-      _slots = slots;
-      if (_selectedSlot != null) {
-        final TimeSlot? refreshed = slots.cast<TimeSlot?>().firstWhere(
-          (slot) => slot?.id == _selectedSlot?.id,
-          orElse: () => null,
-        );
-        _selectedSlot = refreshed;
-      }
-      _notify();
-    });
+    _slotsSubscription = _firestoreService.watchSlots(tutorId).listen(
+      (List<TimeSlot> slots) {
+        _slots = slots;
+        if (_selectedSlot != null) {
+          final TimeSlot? refreshed = slots.cast<TimeSlot?>().firstWhere(
+            (slot) => slot?.id == _selectedSlot?.id,
+            orElse: () => null,
+          );
+          _selectedSlot = refreshed;
+        }
+        _notify();
+      },
+      onError: (Object error) {
+        debugPrint('[STREAM] watchTutorSlots failed: $error');
+        scheduleMicrotask(() {
+          _slots = <TimeSlot>[];
+          _notify();
+        });
+      },
+    );
   }
 
   void watchStudentBookings(String studentId) {
     _bookingsSubscription?.cancel();
     _bookingsSubscription = _firestoreService
         .watchBookingsForStudent(studentId)
-        .listen((bookings) {
-          _bookings = bookings;
-          _notify();
-        });
+        .listen(
+          (List<Booking> bookings) {
+            _bookings = bookings;
+            _notify();
+          },
+          onError: (Object error) {
+            debugPrint('[STREAM] watchStudentBookings failed: $error');
+            scheduleMicrotask(() {
+              _bookings = <Booking>[];
+              _notify();
+            });
+          },
+        );
   }
 
   void watchTutorBookings(String tutorId) {
     _bookingsSubscription?.cancel();
     _bookingsSubscription = _firestoreService
         .watchBookingsForTutor(tutorId)
-        .listen((bookings) {
-          _bookings = bookings;
-          _notify();
-        });
+        .listen(
+          (List<Booking> bookings) {
+            _bookings = bookings;
+            _notify();
+          },
+          onError: (Object error) {
+            debugPrint('[STREAM] watchTutorBookings failed: $error');
+            scheduleMicrotask(() {
+              _bookings = <Booking>[];
+              _notify();
+            });
+          },
+        );
   }
 
   Future<Booking?> checkout({

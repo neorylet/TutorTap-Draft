@@ -58,16 +58,34 @@ class StudyProvider extends ChangeNotifier {
   void watchStudy(String ownerId) {
     _decksSubscription?.cancel();
     _mockExamsSubscription?.cancel();
-    _decksSubscription = _firestoreService.watchDecks(ownerId).listen((decks) {
-      _decks = decks;
-      _notify();
-    });
-    _mockExamsSubscription = _firestoreService
-        .watchMockExams(ownerId)
-        .listen((exams) {
-          _mockExams = exams;
+    _decksSubscription = _firestoreService.watchDecks(ownerId).listen(
+      (List<FlashcardDeck> decks) {
+        _decks = decks;
+        _notify();
+      },
+      onError: (Object error) {
+        debugPrint('[STREAM] watchDecks failed: $error');
+        scheduleMicrotask(() {
+          _decks = <FlashcardDeck>[];
           _notify();
         });
+      },
+    );
+    _mockExamsSubscription = _firestoreService
+        .watchMockExams(ownerId)
+        .listen(
+          (List<MockExam> exams) {
+            _mockExams = exams;
+            _notify();
+          },
+          onError: (Object error) {
+            debugPrint('[STREAM] watchMockExams failed: $error');
+            scheduleMicrotask(() {
+              _mockExams = <MockExam>[];
+              _notify();
+            });
+          },
+        );
   }
 
   Future<void> createDeck({

@@ -32,9 +32,20 @@ class _TutorEarningsScreenState extends State<TutorEarningsScreen> {
       _subscription = context
           .read<FirestoreService>()
           .watchBookingsForTutor(uid)
-          .listen((List<Booking> bookings) {
-        if (mounted) setState(() => _bookings = bookings);
-      });
+          .listen(
+            (List<Booking> bookings) {
+              if (mounted) setState(() => _bookings = bookings);
+            },
+            onError: (Object error) {
+              debugPrint('[STREAM] tutor_earnings failed: $error');
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                setState(() {
+                  _bookings = <Booking>[];
+                });
+              });
+            },
+          );
     }
   }
 

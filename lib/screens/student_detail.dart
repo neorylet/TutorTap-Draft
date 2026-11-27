@@ -43,19 +43,32 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
       _subscription = context
           .read<FirestoreService>()
           .watchBookingsForTutor(uid)
-          .listen((List<Booking> bookings) {
-        if (!mounted) return;
-        final List<Booking> filtered = bookings
-            .where((Booking booking) => booking.studentId == _studentId)
-            .toList(growable: false)
-          ..sort(
-            (Booking a, Booking b) => b.slotStart.compareTo(a.slotStart),
+          .listen(
+            (List<Booking> bookings) {
+              if (!mounted) return;
+              final List<Booking> filtered = bookings
+                  .where((Booking booking) => booking.studentId == _studentId)
+                  .toList(growable: false)
+                ..sort(
+                  (Booking a, Booking b) =>
+                      b.slotStart.compareTo(a.slotStart),
+                );
+              setState(() {
+                _bookings = filtered;
+                _loaded = true;
+              });
+            },
+            onError: (Object error) {
+              debugPrint('[STREAM] student_detail failed: $error');
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                setState(() {
+                  _bookings = <Booking>[];
+                  _loaded = true;
+                });
+              });
+            },
           );
-        setState(() {
-          _bookings = filtered;
-          _loaded = true;
-        });
-      });
     } else {
       setState(() => _loaded = true);
     }

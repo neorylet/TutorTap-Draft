@@ -323,8 +323,6 @@ class SeedService {
         );
         if (tutorId == 'ana' && day == 1 && hour == 11) {
           slot = slot.copyWith(bookedBy: demoStudentId);
-        } else if (tutorId == 'ana' && day == 1 && hour == 14) {
-          slot = slot.lock(demoStudentId, now);
         }
         slots.add(slot);
       }

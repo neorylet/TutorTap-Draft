@@ -31,9 +31,20 @@ class _TutorStudentsScreenState extends State<TutorStudentsScreen> {
       _subscription = context
           .read<FirestoreService>()
           .watchBookingsForTutor(uid)
-          .listen((List<Booking> bookings) {
-        if (mounted) setState(() => _bookings = bookings);
-      });
+          .listen(
+            (List<Booking> bookings) {
+              if (mounted) setState(() => _bookings = bookings);
+            },
+            onError: (Object error) {
+              debugPrint('[STREAM] tutor_students failed: $error');
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                setState(() {
+                  _bookings = <Booking>[];
+                });
+              });
+            },
+          );
     }
   }
 
