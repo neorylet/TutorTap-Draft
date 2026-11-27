@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../core/constants/cancellation_reasons.dart';
+import '../core/constants/reschedule_reasons.dart';
 import '../models/booking.dart';
 import '../providers/auth_provider.dart';
 import '../providers/booking_provider.dart';
@@ -162,6 +163,65 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               ),
             ),
             const SizedBox(height: 12),
+            if (booking.isRescheduled) ...<Widget>[
+              SectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Session changes',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isTutor
+                          ? '${booking.studentName} rescheduled this session'
+                          : 'You rescheduled this session',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    if (booking.previousSlotStart != null) ...<Widget>[
+                      const SizedBox(height: 4),
+                      Text(
+                        'From ${DateFormat('EEE d MMM · h:mm a').format(booking.previousSlotStart!)} to ${DateFormat('EEE d MMM · h:mm a').format(booking.slotStart)}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ] else ...<Widget>[
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormat('EEE d MMM · h:mm a')
+                            .format(booking.slotStart),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                    if ((booking.rescheduleReason ?? '').isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 4),
+                      Text(
+                        RescheduleReasons.labelFor(
+                          booking.rescheduleReason ?? '',
+                        ),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                    if ((booking.rescheduleNote ?? '').isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 4),
+                      Text(
+                        booking.rescheduleNote!,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                    if (booking.rescheduledAt != null) ...<Widget>[
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormat('d MMM, h:mm a')
+                            .format(booking.rescheduledAt!),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             if (booking.isCancelled)
               SectionCard(
                 child: Column(
@@ -232,30 +292,34 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               const SizedBox(height: 8),
             ],
             if (!booking.isCompleted && !booking.isCancelled) ...<Widget>[
-              PillButton(
-                label: 'Reschedule',
-                variant: PillButtonVariant.secondary,
-                onPressed: !canModify
-                    ? null
-                    : () async {
-                        final NavigatorState navigator =
-                            Navigator.of(context);
-                        final ScaffoldMessengerState messenger =
-                            ScaffoldMessenger.of(context);
-                        final dynamic rescheduled = await navigator.pushNamed(
-                          AppRoutes.reschedule,
-                          arguments: booking,
-                        );
-                        if (!mounted || rescheduled != true) return;
-                        messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text('Booking rescheduled.'),
-                          ),
-                        );
-                        navigator.pop();
-                      },
-              ),
-              const SizedBox(height: 8),
+              // Tutor-side reschedule is deliberately hidden in v1: the rules clause is
+              // student-only, and a tutor moving a session is really an availability edit.
+              if (!isTutor) ...<Widget>[
+                PillButton(
+                  label: 'Reschedule',
+                  variant: PillButtonVariant.secondary,
+                  onPressed: !canModify
+                      ? null
+                      : () async {
+                          final NavigatorState navigator =
+                              Navigator.of(context);
+                          final ScaffoldMessengerState messenger =
+                              ScaffoldMessenger.of(context);
+                          final dynamic rescheduled = await navigator.pushNamed(
+                            AppRoutes.reschedule,
+                            arguments: booking,
+                          );
+                          if (!mounted || rescheduled != true) return;
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text('Booking rescheduled.'),
+                            ),
+                          );
+                          navigator.pop();
+                        },
+                ),
+                const SizedBox(height: 8),
+              ],
               PillButton(
                 label: _cancelling ? 'Cancelling…' : 'Cancel booking',
                 variant: PillButtonVariant.text,

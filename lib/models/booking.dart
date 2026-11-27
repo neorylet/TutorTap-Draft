@@ -1,5 +1,6 @@
 import '../core/constants/app_constants.dart';
 import '../core/constants/cancellation_reasons.dart';
+import '../core/constants/reschedule_reasons.dart';
 import '../core/utils/firestore_value.dart';
 
 enum BookingStatus { pending, confirmed, completed, cancelled }
@@ -160,6 +161,15 @@ class Booking {
     final String reason = CancellationReasons.labelFor(cancellationReason);
     if (cancellationReason.isEmpty) return 'Cancelled by $who';
     return 'Cancelled by $who · $reason';
+  }
+
+  bool get isRescheduled => rescheduledAt != null;
+
+  String get rescheduleSummary {
+    if (!isRescheduled) return '';
+    final String reason =
+        RescheduleReasons.labelFor(rescheduleReason ?? '');
+    return reason.isEmpty ? 'Rescheduled' : 'Rescheduled · $reason';
   }
 
   Map<String, dynamic> toMap() => <String, dynamic>{

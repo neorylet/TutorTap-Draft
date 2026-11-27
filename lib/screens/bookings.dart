@@ -118,6 +118,22 @@ class _BookingsScreenState extends State<BookingsScreen> {
                       DateFormat('EEE d MMM · h:mm a').format(booking.slotStart),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
+                    if (booking.isRescheduled) ...<Widget>[
+                      const SizedBox(height: 2),
+                      Text(
+                        booking.rescheduleSummary,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                    if (booking.isCancelled) ...<Widget>[
+                      const SizedBox(height: 2),
+                      Text(
+                        booking.cancelledBy == 'student'
+                            ? 'Cancelled by you'
+                            : 'Cancelled by tutor',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/app_user.dart';
+import '../core/constants/cancellation_reasons.dart';
 import '../models/booking.dart';
 import '../providers/auth_provider.dart';
 import '../providers/booking_provider.dart';
@@ -165,26 +166,43 @@ class _TutorDashboardScreenState extends State<TutorDashboardScreen> {
               ...upcoming.take(5).map(
                     (Booking booking) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: SectionCard(
-                        child: Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  Text(booking.studentName),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    DateFormat('EEE d MMM · h:mm a')
-                                        .format(booking.slotStart),
-                                    style:
-                                        Theme.of(context).textTheme.bodySmall,
-                                  ),
-                                ],
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => Navigator.of(context).pushNamed(
+                          AppRoutes.bookingDetail,
+                          arguments: booking,
+                        ),
+                        child: SectionCard(
+                          child: Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(booking.studentName),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      DateFormat('EEE d MMM · h:mm a')
+                                          .format(booking.slotStart),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall,
+                                    ),
+                                    if (booking.isRescheduled) ...<Widget>[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        booking.rescheduleSummary,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
+                                    ],
+                                  ],
+                                ),
                               ),
-                            ),
-                            StatusBadge.fromStatus(booking.status.value),
-                          ],
+                              StatusBadge.fromStatus(booking.status.value),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -198,37 +216,51 @@ class _TutorDashboardScreenState extends State<TutorDashboardScreen> {
               ...past.map(
                 (Booking booking) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: SectionCard(
-                    child: Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(booking.studentName),
-                              const SizedBox(height: 4),
-                              Text(
-                                DateFormat('EEE d MMM · h:mm a')
-                                    .format(booking.slotStart),
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (booking.canBeCompleted)
-                          TextButton(
-                            onPressed: _completing.contains(booking.id)
-                                ? null
-                                : () => _markComplete(booking),
-                            child: Text(
-                              _completing.contains(booking.id)
-                                  ? 'Saving…'
-                                  : 'Mark complete',
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => Navigator.of(context).pushNamed(
+                      AppRoutes.bookingDetail,
+                      arguments: booking,
+                    ),
+                    child: SectionCard(
+                      child: Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(booking.studentName),
+                                const SizedBox(height: 4),
+                                Text(
+                                  DateFormat('EEE d MMM · h:mm a')
+                                      .format(booking.slotStart),
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
                             ),
-                          )
-                        else
-                          StatusBadge.fromStatus(booking.status.value),
-                      ],
+                          ),
+                          if (booking.canBeCompleted)
+                            TextButton(
+                              onPressed: _completing.contains(booking.id)
+                                  ? null
+                                  : () => _markComplete(booking),
+                              child: Text(
+                                _completing.contains(booking.id)
+                                    ? 'Saving…'
+                                    : 'Mark complete',
+                              ),
+                            )
+                          else if (booking.isCancelled)
+                            Text(
+                              CancellationReasons.labelFor(
+                                booking.cancellationReason,
+                              ),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            )
+                          else
+                            StatusBadge.fromStatus(booking.status.value),
+                        ],
+                      ),
                     ),
                   ),
                 ),
