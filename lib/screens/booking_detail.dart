@@ -1,16 +1,23 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../core/constants/cancellation_reasons.dart';
 import '../core/constants/reschedule_reasons.dart';
+import '../core/theme/app_colors.dart';
 import '../models/booking.dart';
+import '../models/review.dart';
 import '../providers/auth_provider.dart';
 import '../providers/booking_provider.dart';
 import '../routing/app_routes.dart';
+import '../services/firestore_service.dart';
 import '../widgets/cancel_booking_sheet.dart';
 import '../widgets/meeting_link_box.dart';
 import '../widgets/pill_button.dart';
+import '../widgets/review_sheet.dart';
+import '../widgets/star_rating.dart';
 import '../widgets/status_badge.dart';
 import 'screen_scaffold.dart';
 
@@ -24,6 +31,37 @@ class BookingDetailScreen extends StatefulWidget {
 class _BookingDetailScreenState extends State<BookingDetailScreen> {
   bool _completing = false;
   bool _cancelling = false;
+  bool _reviewed = false;
+  Review? _myReview;
+
+  @override
+  void initState() {
+    super.initState();
+    final Booking? booking =
+        ModalRoute.of(context)?.settings.arguments as Booking?;
+    if (booking == null || !booking.isCompleted) return;
+    final String? uid = context.read<AuthProvider>().currentUser?.uid;
+    if (uid == null || uid == booking.tutorId) return;
+    unawaited(_loadReview(booking.id));
+  }
+
+  Future<void> _loadReview(String bookingId) async {
+    try {
+      final Review? review =
+          await FirestoreService().fetchReviewForBooking(bookingId);
+      if (!mounted) return;
+      setState(() {
+        _myReview = review;
+        _reviewed = review != null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _myReview = null;
+        _reviewed = false;
+      });
+    }
+  }
 
   Future<void> _markComplete(Booking booking) async {
     if (_completing) return;
@@ -152,6 +190,57 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                       'Completed on ${DateFormat('d MMM, h:mm a').format(booking.completedAt!)}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
+                    if (!isTutor) ...<Widget>[
+                      const SizedBox(height: 8),
+                      if (!_reviewed) ...<Widget>[
+                        PillButton(
+                          label: 'Rate this session',
+                          variant: PillButtonVariant.secondary,
+                          onPressed: () async {
+                            final ScaffoldMessengerState messenger =
+                                ScaffoldMessenger.of(context);
+                            final bool? rated = await showReviewSheet(
+                              context,
+                              booking: booking,
+                            );
+                            if (!mounted || rated != true) return;
+                            await _loadReview(booking.id);
+                            if (!mounted) return;
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text('Thanks for the review.'),
+                              ),
+                            );
+                          },
+                        ),
+                      ] else ...<Widget>[
+                        Row(
+                          children: <Widget>[
+                            StarRating(value: _myReview!.stars.toDouble()),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'You rated this session ${_myReview!.stars}/5',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(color: AppColors.muted),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (_myReview!.hasComment) ...<Widget>[
+                          const SizedBox(height: 4),
+                          Text(
+                            _myReview!.comment,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: AppColors.muted),
+                          ),
+                        ],
+                      ],
+                    ],
                   ],
                   const SizedBox(height: 14),
                   MeetingLinkBox(

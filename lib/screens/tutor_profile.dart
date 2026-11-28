@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../core/constants/cloudinary_config.dart';
 import '../core/theme/app_colors.dart';
 import '../models/app_user.dart';
+import '../models/review.dart';
 import '../models/time_slot.dart';
 import '../models/tutor_profile.dart';
 import '../providers/auth_provider.dart';
@@ -14,6 +17,7 @@ import '../routing/app_routes.dart';
 import '../services/firestore_service.dart';
 import '../widgets/pill_button.dart';
 import '../widgets/slot_cell.dart';
+import '../widgets/star_rating.dart';
 import '../widgets/status_badge.dart';
 import 'screen_scaffold.dart';
 
@@ -28,6 +32,8 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
   TutorProfile? _tutor;
   bool _loading = true;
   bool _initialized = false;
+  List<Review> _reviews = <Review>[];
+  StreamSubscription<List<Review>>? _reviewsSubscription;
 
   @override
   void didChangeDependencies() {
@@ -35,6 +41,12 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
     if (_initialized) return;
     _initialized = true;
     final Object? arguments = ModalRoute.of(context)?.settings.arguments;
+    final String? reviewsUid = arguments is TutorProfile
+        ? arguments.uid
+        : arguments is String
+            ? arguments
+            : null;
+    if (reviewsUid != null) _subscribeReviews(reviewsUid);
     if (arguments is TutorProfile) {
       setState(() {
         _tutor = arguments;
@@ -67,6 +79,25 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _subscribeReviews(String tutorUid) {
+    _reviewsSubscription?.cancel();
+    _reviewsSubscription = FirestoreService()
+        .watchReviewsForTutor(tutorUid)
+        .listen(
+          (List<Review> reviews) {
+            if (!mounted) return;
+            setState(() => _reviews = reviews);
+          },
+          onError: (Object _) {},
+        );
+  }
+
+  @override
+  void dispose() {
+    _reviewsSubscription?.cancel();
+    super.dispose();
   }
 
   @override
@@ -208,9 +239,11 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+                     ),
+                   ),
+                   const SizedBox(height: 14),
+                   _reviewsSection(context),
+                   const SizedBox(height: 16),
                 ],
               ),
             ),
@@ -344,6 +377,86 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
       );
     }
     return const SizedBox.shrink();
+  }
+
+  double get _averageRating => _reviews.isEmpty
+      ? 0.0
+      : _reviews.fold<int>(0, (int sum, Review review) => sum + review.stars) /
+          _reviews.length;
+
+  Widget _reviewsSection(BuildContext context) {
+    final TextStyle? muted = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: AppColors.muted,
+    );
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text('Reviews', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          if (_reviews.isEmpty) ...<Widget>[
+            const EmptyHint(message: 'No reviews yet.'),
+            Text(
+              'Completed sessions can be rated by the student.',
+              style: muted,
+              textAlign: TextAlign.center,
+            ),
+          ] else ...<Widget>[
+            Row(
+              children: <Widget>[
+                StarRating(value: _averageRating),
+                const SizedBox(width: 8),
+                Text(
+                  _averageRating.toStringAsFixed(1),
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+                const SizedBox(width: 6),
+                Text('· ${_reviews.length} review(s)', style: muted),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ..._reviews.take(3).map(
+              (Review review) => _reviewRow(context, review),
+            ),
+            if (_reviews.length > 3) ...<Widget>[
+              const SizedBox(height: 6),
+              Text('Showing 3 of ${_reviews.length}', style: muted),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _reviewRow(BuildContext context, Review review) {
+    final TextStyle? muted = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: AppColors.muted,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  review.studentName,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+              Text(DateFormat('d MMM').format(review.createdAt), style: muted),
+            ],
+          ),
+          const SizedBox(height: 2),
+          StarRating(value: review.stars.toDouble()),
+          if (review.hasComment) ...<Widget>[
+            const SizedBox(height: 4),
+            Text(review.comment, style: muted),
+          ],
+        ],
+      ),
+    );
   }
 
   String _modeLabel(String mode) => switch (mode) {
