@@ -1,8 +1,10 @@
-import 'package:file_picker/file_picker.dart';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 
-import '../core/utils/module_file_icon.dart';
+import '../core/constants/cloudinary_config.dart';
 import '../models/classroom_module.dart';
 import '../models/course.dart';
 import '../models/exam.dart';
@@ -12,10 +14,15 @@ import '../providers/classroom_provider.dart';
 import '../services/cloudinary_service.dart';
 import '../widgets/confirm_dialog.dart';
 import 'create_exam_screen.dart';
-import 'document_view_screen.dart';
 import 'exam_preview_screen.dart';
 import 'module_preview_screen.dart';
 import 'screen_scaffold.dart';
+
+extension _ClassroomModuleFileAccess on ClassroomModule {
+  String get fileUrl => files.isEmpty ? '' : files.first.url;
+
+  String get fileType => files.isEmpty ? '' : files.first.type;
+}
 
 class CourseDetailScreen extends StatefulWidget {
   const CourseDetailScreen({super.key, required this.course});
@@ -66,10 +73,10 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               itemCount: courseModules.length,
               itemBuilder: (context, index) {
                 final ClassroomModule module = courseModules[index];
-                final bool hasFile = module.files.isNotEmpty;
-                final IconData fileIcon = hasFile
-                    ? iconForModuleFile(module.files.first.type)
-                    : Icons.description_outlined;
+                final bool hasFile = module.fileUrl.isNotEmpty;
+                final IconData fileIcon = module.fileType == 'pdf'
+                    ? Icons.picture_as_pdf
+                    : Icons.slideshow;
                 final Exam? attachedExam = exams
                     .where((exam) => exam.moduleId == module.id)
                     .firstOrNull;
@@ -101,19 +108,10 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                               ),
                               child: const Icon(Icons.quiz),
                             )
+                          else if (hasFile)
+                            Icon(fileIcon)
                           else
-                            InkWell(
-                              onTap: module.files.isEmpty
-                                  ? null
-                                  : () => Navigator.of(context).push(
-                                        MaterialPageRoute<void>(
-                                          builder: (_) => DocumentViewScreen(
-                                            file: module.files.first,
-                                          ),
-                                        ),
-                                      ),
-                              child: Icon(fileIcon),
-                            ),
+                            const Icon(Icons.description_outlined),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -133,24 +131,11 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                             visualDensity: VisualDensity.compact,
                           ),
                           const SizedBox(width: 8),
-                          if (module.files.length > 1) ...<Widget>[
-                            Chip(
-                              label: Text('${module.files.length} files'),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                            const SizedBox(width: 8),
-                          ],
                           PopupMenuButton<String>(
                             icon: const Icon(Icons.more_vert),
                             onSelected: (String value) async {
                               if (value == 'delete') {
                                 _showDeleteModuleDialog(context, module.id);
-                              } else if (value == 'attach_document') {
-                                await _showAttachDocument(
-                                  context,
-                                  module,
-                                  tutorId,
-                                );
                               } else if (value == 'attach_quiz') {
                                 await _showAttachQuizDialog(context, module.id);
                               } else if (value == 'detach_quiz' &&
@@ -159,20 +144,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                               }
                             },
                             itemBuilder: (context) => <PopupMenuEntry<String>>[
-                              PopupMenuItem<String>(
-                                value: 'attach_document',
-                                child: Row(
-                                  children: <Widget>[
-                                    const Icon(Icons.attach_file),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      module.files.isEmpty
-                                          ? 'Add document'
-                                          : 'Add documents',
-                                    ),
-                                  ],
-                                ),
-                              ),
                               if (attachedExam == null)
                                 const PopupMenuItem<String>(
                                   value: 'attach_quiz',
@@ -248,9 +219,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   ) async {
     final ClassroomProvider classroomProvider = context
         .read<ClassroomProvider>();
-    // ignore: use_build_context_synchronously
     final NavigatorState navigator = Navigator.of(context);
-    // ignore: use_build_context_synchronously
     final ScaffoldMessengerState scaffoldMessenger = ScaffoldMessenger.of(
       context,
     );
@@ -293,7 +262,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   ) async {
     final ClassroomProvider classroomProvider = context
         .read<ClassroomProvider>();
-    // ignore: use_build_context_synchronously
     final ScaffoldMessengerState scaffoldMessenger = ScaffoldMessenger.of(
       context,
     );
@@ -331,8 +299,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     String moduleId,
   ) async {
     final ClassroomProvider provider = context.read<ClassroomProvider>();
-    final messenger = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
+    final NavigatorState navigator = Navigator.of(context);
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     final List<Exam> unattachedExams = provider.exams
         .where((exam) => exam.moduleId == null)
         .toList();
@@ -378,6 +346,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     if (!mounted) return;
 
     if (choice == 'create') {
+      if (!mounted) return;
       navigator.push(
         MaterialPageRoute<void>(
           builder: (_) => CreateExamScreen(
@@ -394,76 +363,27 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       if (!mounted) return;
 
       if (!success) {
-        messenger.showSnackBar(
-          SnackBar(content: Text('Failed to attach quiz: ${provider.error}')),
-        );
+        if (mounted) {
+          messenger.showSnackBar(
+            SnackBar(content: Text('Failed to attach quiz: ${provider.error}')),
+          );
+        }
       }
     }
   }
 
   Future<void> _detachQuiz(BuildContext context, String examId) async {
     final ClassroomProvider provider = context.read<ClassroomProvider>();
-    final messenger = ScaffoldMessenger.of(context);
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     final bool success = await provider.detachExam(examId: examId);
     if (!mounted) return;
 
     if (!success) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Failed to detach quiz: ${provider.error}')),
-      );
-    }
-  }
-
-  Future<void> _showAttachDocument(
-    BuildContext context,
-    ClassroomModule module,
-    String tutorId,
-  ) async {
-    final ClassroomProvider provider = context.read<ClassroomProvider>();
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-
-    if (module.files.length >= ClassroomProvider.maxModuleFiles) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'This module already has the maximum number of documents',
-          ),
-        ),
-      );
-      return;
-    }
-
-    final List<PlatformFile> picked = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: <String>['pdf', 'ppt', 'pptx', 'doc', 'docx'],
-      dialogTitle: 'Select documents',
-    );
-    if (picked.isEmpty) return;
-
-    final int room = ClassroomProvider.maxModuleFiles - module.files.length;
-    if (picked.length > room) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Only $room more document(s) fit in this module'),
-        ),
-      );
-      return;
-    }
-
-    final List<ModuleFile> uploaded = await provider.uploadModuleDocuments(
-      tutorId: tutorId,
-      picked: picked,
-      onReject: (String message) async {
-        messenger.showSnackBar(SnackBar(content: Text(message)));
-      },
-    );
-    if (uploaded.isEmpty) return;
-
-    final bool ok = await provider.appendModuleFiles(module, uploaded);
-    if (!ok) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(provider.error ?? 'Could not save documents')),
-      );
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Failed to detach quiz: ${provider.error}')),
+        );
+      }
     }
   }
 }
@@ -486,7 +406,8 @@ class _AddModuleDialog extends StatefulWidget {
 class _AddModuleDialogState extends State<_AddModuleDialog> {
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
-  List<PlatformFile> _pickedFiles = <PlatformFile>[];
+  String? _pickedFilePath;
+  String? _pickedFileName;
   String? _fileSizeError;
 
   @override
@@ -504,23 +425,37 @@ class _AddModuleDialogState extends State<_AddModuleDialog> {
   }
 
   Future<void> _pickFile() async {
-    final List<PlatformFile> files = await FilePicker.pickFiles(
+    final PlatformFile? file = await FilePicker.pickFile(
       type: FileType.custom,
-      allowedExtensions: <String>['pdf', 'ppt', 'pptx', 'doc', 'docx'],
+      allowedExtensions: <String>['pdf', 'ppt', 'pptx'],
     );
-    if (files.isEmpty) return;
 
+    if (file == null || file.path == null) return;
+
+    final String filePath = file.path!;
+    final File fileObj = File(filePath);
+    final int fileSize = await fileObj.length();
+
+    if (fileSize > CloudinaryConfig.maxFileSizeBytes) {
+      setState(() {
+        _fileSizeError = 'File exceeds 20MB limit';
+        _pickedFilePath = null;
+        _pickedFileName = null;
+      });
+    } else {
+      setState(() {
+        _fileSizeError = null;
+        _pickedFilePath = filePath;
+        _pickedFileName = file.name;
+      });
+    }
+  }
+
+  void _clearFile() {
     setState(() {
+      _pickedFilePath = null;
+      _pickedFileName = null;
       _fileSizeError = null;
-      for (final PlatformFile file in files) {
-        final bool exists = _pickedFiles.any(
-          (PlatformFile picked) =>
-              picked.path == file.path && picked.name == file.name,
-        );
-        if (!exists) {
-          _pickedFiles.add(file);
-        }
-      }
     });
   }
 
@@ -537,24 +472,47 @@ class _AddModuleDialogState extends State<_AddModuleDialog> {
       return;
     }
 
-    final List<ModuleFile> uploaded = await classroomProvider
-        .uploadModuleDocuments(
-          tutorId: widget.tutorId,
-          picked: _pickedFiles,
-          onReject: (String message) async {
-            if (mounted) {
-              setState(() => _fileSizeError = message);
-            }
-          },
-        );
-    if (!mounted) return;
+    String fileUrl = '';
+    String fileType = '';
+
+    if (_pickedFilePath != null) {
+      final String extension = _pickedFileName!.split('.').last.toLowerCase();
+      fileType = extension;
+
+      final CloudinaryUploadResult? uploadResult = await classroomProvider
+          .uploadFile(
+            filePath: _pickedFilePath!,
+            purpose: UploadPurpose.module,
+            ownerId: widget.tutorId,
+            fileName: _pickedFileName,
+          );
+
+      if (!mounted) return;
+
+      if (uploadResult == null) {
+        setState(() {
+          _fileSizeError = classroomProvider.error ?? 'Upload failed';
+        });
+        return;
+      }
+
+      fileUrl = uploadResult.secureUrl;
+    }
 
     await classroomProvider.createModuleInCourse(
       tutorId: widget.tutorId,
       courseId: widget.courseId,
       title: title,
       description: description,
-      files: uploaded,
+      files: fileUrl.isEmpty
+          ? const <ModuleFile>[]
+          : <ModuleFile>[
+              ModuleFile(
+                url: fileUrl,
+                type: fileType,
+                name: _pickedFileName ?? '',
+              ),
+            ],
       orderIndex: widget.orderIndex,
     );
 
@@ -606,38 +564,30 @@ class _AddModuleDialogState extends State<_AddModuleDialog> {
             decoration: const InputDecoration(labelText: 'Description'),
           ),
           const SizedBox(height: 12),
-          ..._pickedFiles.map(
-            (PlatformFile file) => Row(
+          if (_pickedFileName != null) ...<Widget>[
+            Row(
               children: <Widget>[
                 const Icon(Icons.attach_file, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    file.name,
+                    _pickedFileName!,
                     style: Theme.of(context).textTheme.bodySmall,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close, size: 20),
-                  onPressed: () {
-                    setState(() {
-                      _pickedFiles = List<PlatformFile>.from(_pickedFiles)
-                        ..remove(file);
-                    });
-                  },
+                  onPressed: _clearFile,
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: _pickFile,
-            icon: const Icon(Icons.attach_file),
-            label: Text(
-              _pickedFiles.isEmpty ? 'Attach files' : 'Add more files',
+          ] else
+            OutlinedButton.icon(
+              onPressed: _pickFile,
+              icon: const Icon(Icons.attach_file),
+              label: const Text('Attach file'),
             ),
-          ),
           if (_fileSizeError != null || hasPendingError) ...<Widget>[
             const SizedBox(height: 8),
             Text(
