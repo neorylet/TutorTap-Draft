@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -32,23 +30,31 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   bool _completing = false;
   bool _cancelling = false;
   bool _reviewed = false;
+  bool _argumentsLoaded = false;
+  Booking? _booking;
   Review? _myReview;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_argumentsLoaded) return;
+    _argumentsLoaded = true;
+
     final Booking? booking =
         ModalRoute.of(context)?.settings.arguments as Booking?;
+    _booking = booking;
     if (booking == null || !booking.isCompleted) return;
     final String? uid = context.read<AuthProvider>().currentUser?.uid;
     if (uid == null || uid == booking.tutorId) return;
-    unawaited(_loadReview(booking.id));
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadReview());
   }
 
-  Future<void> _loadReview(String bookingId) async {
+  Future<void> _loadReview() async {
+    final Booking? booking = _booking;
+    if (booking == null || !mounted) return;
     try {
       final Review? review =
-          await FirestoreService().fetchReviewForBooking(bookingId);
+          await FirestoreService().fetchReviewForBooking(booking.id);
       if (!mounted) return;
       setState(() {
         _myReview = review;
@@ -137,8 +143,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final Booking? booking =
-        ModalRoute.of(context)?.settings.arguments as Booking?;
+    final Booking? booking = _booking;
     if (booking == null) {
       return const ScreenScaffold(
         title: 'Booking',
@@ -204,7 +209,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                               booking: booking,
                             );
                             if (!mounted || rated != true) return;
-                            await _loadReview(booking.id);
+                            await _loadReview();
                             if (!mounted) return;
                             messenger.showSnackBar(
                               const SnackBar(

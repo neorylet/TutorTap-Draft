@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../core/constants/app_constants.dart';
 import '../core/utils/firestore_value.dart';
@@ -518,28 +519,33 @@ class FirestoreService {
       booking.tutorId,
     );
 
-    await _firestore.runTransaction<void>((Transaction transaction) async {
-      final DocumentSnapshot<Map<String, dynamic>> tutorSnapshot =
-          await transaction.get(tutorRef);
-      final Map<String, dynamic>? tutorData = tutorSnapshot.data();
-      final double oldRating = doubleFrom(tutorData?['rating'], 0);
-      final int oldCount = intFrom(tutorData?['ratingCount'], 0);
+    try {
+      await _firestore.runTransaction<void>((Transaction transaction) async {
+        final DocumentSnapshot<Map<String, dynamic>> tutorSnapshot =
+            await transaction.get(tutorRef);
+        final Map<String, dynamic>? tutorData = tutorSnapshot.data();
+        final double oldRating = doubleFrom(tutorData?['rating'], 0);
+        final int oldCount = intFrom(tutorData?['ratingCount'], 0);
 
-      transaction.set(reviews.doc(booking.id), <String, dynamic>{
-        'bookingId': booking.id,
-        'studentId': booking.studentId,
-        'studentName': booking.studentName,
-        'tutorId': booking.tutorId,
-        'stars': stars,
-        'comment': comment.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
+        transaction.set(reviews.doc(booking.id), <String, dynamic>{
+          'bookingId': booking.id,
+          'studentId': booking.studentId,
+          'studentName': booking.studentName,
+          'tutorId': booking.tutorId,
+          'stars': stars,
+          'comment': comment.trim(),
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        transaction.update(tutorRef, <String, dynamic>{
+          'rating': ((oldRating * oldCount) + stars) / (oldCount + 1),
+          'ratingCount': oldCount + 1,
+          'lastReviewId': booking.id,
+        });
       });
-      transaction.update(tutorRef, <String, dynamic>{
-        'rating': ((oldRating * oldCount) + stars) / (oldCount + 1),
-        'ratingCount': oldCount + 1,
-        'lastReviewId': booking.id,
-      });
-    });
+    } catch (error) {
+      debugPrint('[REVIEW] submitReview failed: $error');
+      rethrow;
+    }
   }
 
   Future<Review?> fetchReviewForBooking(String bookingId) async {

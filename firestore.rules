@@ -136,6 +136,7 @@ service cloud.firestore {
                                request.auth.uid)
         );
 
+      // get() cannot see a document written in the same transaction; getAfter() can.
       // The review pointer makes this aggregate increment legitimate: it proves
       // which review the student just wrote. The average is client-computed and therefore unverifiable in rules.
       allow update: if isSignedIn() &&
@@ -144,8 +145,8 @@ service cloud.firestore {
         request.resource.data.ratingCount == resource.data.ratingCount + 1 &&
         request.resource.data.rating >= 0.0 &&
         request.resource.data.rating <= 5.0 &&
-        get(/databases/$(database)/documents/reviews/$(request.resource.data.lastReviewId)).data.studentId == request.auth.uid &&
-        get(/databases/$(database)/documents/reviews/$(request.resource.data.lastReviewId)).data.tutorId == uid;
+        getAfter(/databases/$(database)/documents/reviews/$(request.resource.data.lastReviewId)).data.studentId == request.auth.uid &&
+        getAfter(/databases/$(database)/documents/reviews/$(request.resource.data.lastReviewId)).data.tutorId == uid;
 
       allow delete: if false;
     }
