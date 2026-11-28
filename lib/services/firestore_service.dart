@@ -9,6 +9,7 @@ import '../models/course.dart';
 import '../models/exam.dart';
 import '../models/flashcard_deck.dart';
 import '../models/mock_exam.dart';
+import '../models/review.dart';
 import '../models/time_slot.dart';
 import '../models/tutor_private_profile.dart';
 import '../models/tutor_profile.dart';
@@ -55,6 +56,8 @@ class FirestoreService {
       _firestore.collection('flashcard_decks');
   CollectionReference<Map<String, dynamic>> get mockExams =>
       _firestore.collection('mock_exams');
+  CollectionReference<Map<String, dynamic>> get reviews =>
+      _firestore.collection('reviews');
   CollectionReference<Map<String, dynamic>> get verificationRequests =>
       _firestore.collection('verification_requests');
 
@@ -506,6 +509,56 @@ class FirestoreService {
     });
   }
 
+  Future<void> submitReview({
+    required Booking booking,
+    required int stars,
+    required String comment,
+  }) async {
+    final DocumentReference<Map<String, dynamic>> tutorRef = tutors.doc(
+      booking.tutorId,
+    );
+
+    await _firestore.runTransaction<void>((Transaction transaction) async {
+      final DocumentSnapshot<Map<String, dynamic>> tutorSnapshot =
+          await transaction.get(tutorRef);
+      final Map<String, dynamic>? tutorData = tutorSnapshot.data();
+      final double oldRating = doubleFrom(tutorData?['rating'], 0);
+      final int oldCount = intFrom(tutorData?['ratingCount'], 0);
+
+      transaction.set(reviews.doc(booking.id), <String, dynamic>{
+        'bookingId': booking.id,
+        'studentId': booking.studentId,
+        'studentName': booking.studentName,
+        'tutorId': booking.tutorId,
+        'stars': stars,
+        'comment': comment.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      transaction.update(tutorRef, <String, dynamic>{
+        'rating': ((oldRating * oldCount) + stars) / (oldCount + 1),
+        'ratingCount': oldCount + 1,
+        'lastReviewId': booking.id,
+      });
+    });
+  }
+
+  Future<Review?> fetchReviewForBooking(String bookingId) async {
+    final DocumentSnapshot<Map<String, dynamic>> snapshot =
+        await reviews.doc(bookingId).get();
+    final Map<String, dynamic>? data = snapshot.data();
+    if (!snapshot.exists || data == null) return null;
+    return Review.fromMap(bookingId, data);
+  }
+
+  Stream<List<Review>> watchReviewsForTutor(String tutorId) {
+    return reviews
+        .where('tutorId', isEqualTo: tutorId)
+        .orderBy('createdAt', descending: true)
+        .limit(20)
+        .snapshots()
+        .map(_reviewsFromSnapshot);
+  }
+
   Future<void> rescheduleBooking({
     required Booking booking,
     required String newSlotId,
@@ -605,6 +658,17 @@ class FirestoreService {
         .map(
           (QueryDocumentSnapshot<Map<String, dynamic>> doc) =>
               Booking.fromMap(<String, dynamic>{...doc.data(), 'id': doc.id}),
+        )
+        .toList(growable: true);
+  }
+
+  List<Review> _reviewsFromSnapshot(
+    QuerySnapshot<Map<String, dynamic>> snapshot,
+  ) {
+    return snapshot.docs
+        .map(
+          (QueryDocumentSnapshot<Map<String, dynamic>> doc) =>
+              Review.fromMap(doc.id, doc.data()),
         )
         .toList(growable: true);
   }

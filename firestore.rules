@@ -84,6 +84,13 @@ service cloud.firestore {
         slotPairSwap(before.removeAll(after), after.removeAll(before), uid);
     }
 
+    function reviewBookingCompletedBy(reviewId, uid, tutorId) {
+      let booking = get(/databases/$(database)/documents/bookings/$(reviewId)).data;
+      return booking.studentId == uid &&
+        booking.status == 'completed' &&
+        booking.tutorId == tutorId;
+    }
+
     // -------- USERS --------
     // Owner creates with role in ('student','tutor') only; owner cannot
     // mutate role on update. Admin-SDK changes role via Cloud Functions.
@@ -128,6 +135,17 @@ service cloud.firestore {
                                request.resource.data.slots,
                                request.auth.uid)
         );
+
+      // The review pointer makes this aggregate increment legitimate: it proves
+      // which review the student just wrote. The average is client-computed and therefore unverifiable in rules.
+      allow update: if isSignedIn() &&
+        !isOwner(uid) &&
+        affectedKeys().hasOnly(['rating', 'ratingCount', 'lastReviewId']) &&
+        request.resource.data.ratingCount == resource.data.ratingCount + 1 &&
+        request.resource.data.rating >= 0.0 &&
+        request.resource.data.rating <= 5.0 &&
+        get(/databases/$(database)/documents/reviews/$(request.resource.data.lastReviewId)).data.studentId == request.auth.uid &&
+        get(/databases/$(database)/documents/reviews/$(request.resource.data.lastReviewId)).data.tutorId == uid;
 
       allow delete: if false;
     }
@@ -208,6 +226,28 @@ service cloud.firestore {
         request.resource.data.cancellationNote.size() <= 200;
 
       allow delete: if false;
+    }
+
+    // -------- REVIEWS --------
+    match /reviews/{reviewId} {
+      allow read: if true;
+
+      allow create: if isSignedIn() &&
+        request.resource.data.bookingId == reviewId &&
+        request.resource.data.studentId == request.auth.uid &&
+        request.resource.data.keys().hasOnly([
+          'bookingId', 'studentId', 'studentName', 'tutorId',
+          'stars', 'comment', 'createdAt'
+        ]) &&
+        request.resource.data.stars is int &&
+        request.resource.data.stars >= 1 &&
+        request.resource.data.stars <= 5 &&
+        request.resource.data.comment is string &&
+        request.resource.data.comment.size() <= 500 &&
+        request.resource.data.createdAt == request.time &&
+        reviewBookingCompletedBy(reviewId, request.auth.uid, request.resource.data.tutorId);
+
+      allow update, delete: if false;
     }
 
     // -------- VERIFICATION REQUESTS --------
