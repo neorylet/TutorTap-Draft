@@ -1,6 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 
 import '../core/constants/app_constants.dart';
 import '../core/utils/firestore_value.dart';
@@ -38,16 +36,6 @@ class FirestoreService {
     : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
-
-  String _dumpSlots(List<TimeSlot> slots) => slots
-      .map(
-        (TimeSlot s) =>
-            '{id:${s.id} start:${s.start.toUtc().toIso8601String()} '
-            'end:${s.end.toUtc().toIso8601String()} lockedBy:${s.lockedBy} '
-            'exp:${s.lockExpiresAt?.toUtc().toIso8601String()} '
-            'bookedBy:${s.bookedBy} courseId:${s.courseId}}',
-      )
-      .join(' || ');
 
   CollectionReference<Map<String, dynamic>> get users =>
       _firestore.collection('users');
@@ -415,14 +403,6 @@ class FirestoreService {
       paymentMode: AppConstants.paymentMode,
       createdAt: now,
     );
-    debugPrint(
-      '[BOOKING_RECON] booking keys=${booking.toMap().keys.join(",")}',
-    );
-
-    debugPrint(
-      '[BOOKING_RECON] confirmSimulatedBooking start tutor=$tutorId slot=$slotId '
-      'studentId=$studentId authUid=${FirebaseAuth.instance.currentUser?.uid}',
-    );
     try {
       await _firestore.runTransaction<void>((Transaction transaction) async {
         final DocumentSnapshot<Map<String, dynamic>> tutorSnapshot =
@@ -437,9 +417,6 @@ class FirestoreService {
           ...tutorData,
           'uid': tutorId,
         });
-        debugPrint(
-          '[BOOKING_RECON] server slots BEFORE = ${_dumpSlots(profile.slots)}',
-        );
         final int index = profile.slots.indexWhere(
           (TimeSlot slot) => slot.id == slotId,
         );
@@ -453,9 +430,6 @@ class FirestoreService {
 
         final List<TimeSlot> updatedSlots = List<TimeSlot>.from(profile.slots);
         updatedSlots[index] = slot.copyWith(bookedBy: studentId);
-        debugPrint(
-          '[BOOKING_RECON] client slots AFTER  = ${_dumpSlots(updatedSlots)}',
-        );
         transaction.update(tutorRef, <String, dynamic>{
           'slots': updatedSlots
               .map((TimeSlot item) => item.toMap())
@@ -463,12 +437,7 @@ class FirestoreService {
         });
         transaction.set(bookingRef, booking.toMap());
       });
-    } on Object catch (e, st) {
-      debugPrint(
-        '[BOOKING_RECON] confirmSimulatedBooking FAILED type=${e.runtimeType} '
-        'firebase=${e is FirebaseException ? "${e.plugin}/${e.code}/${e.message}" : "n/a"}',
-      );
-      debugPrint('[BOOKING_RECON] stack=$st');
+    } on Object catch (_) {
       rethrow;
     }
 

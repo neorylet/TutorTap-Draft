@@ -172,11 +172,9 @@ class BookingProvider extends ChangeNotifier {
       return booking;
     } on SlotAlreadyTakenException catch (error) {
       _error = error.message;
-      debugPrint('[BOOKING_RECON] provider ${error.runtimeType} $error');
       return null;
     } catch (error) {
       _error = error.toString();
-      debugPrint('[BOOKING_RECON] provider ${error.runtimeType} $error');
       return null;
     } finally {
       _isCheckingOut = false;
